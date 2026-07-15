@@ -1,0 +1,5500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Prevent iOS auto-zoom on focus, support notch/safe-area, standalone PWA -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Nail by Sacha Khalil - Appointment Calendar</title>
+
+    <!-- PWA / Add to Home Screen -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- Apple / iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Nail by Sacha Khalil">
+    <!-- Apple touch icons for home screen -->
+    <link rel="apple-touch-icon" href="icon-512.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icon-512.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icon-512.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="icon-512.png">
+
+    <style>
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    /* Remove iOS blue tap highlight flash */
+    -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+    --primary-color: #4f46e5;
+    --primary-dark: #4338ca;
+    --secondary-color: #10b981;
+    --danger-color: #ef4444;
+    --warning-color: #f59e0b;
+    --bg-color: #f9fafb;
+    --card-bg: #ffffff;
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --border-color: #e5e7eb;
+    --sidebar-bg: #1f2937;
+    --sidebar-text: #d1d5db;
+    --sidebar-active: #374151;
+    --success-color: #10b981;
+    /* iOS safe-area shorthand variables */
+    --sat: env(safe-area-inset-top);
+    --sab: env(safe-area-inset-bottom);
+    --sal: env(safe-area-inset-left);
+    --sar: env(safe-area-inset-right);
+}
+
+html {
+    /* Ensure correct full height on iOS Safari */
+    height: -webkit-fill-available;
+    height: 100%;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    /* Prevent rubber-band overscroll at the page level */
+    overscroll-behavior: none;
+}
+
+/* Sidebar Navigation */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 260px;
+    height: 100vh;
+    background: var(--sidebar-bg);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+}
+
+.sidebar-header {
+    margin-bottom: 40px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: white;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.logo i {
+    color: var(--primary-color);
+    font-size: 28px;
+}
+
+.nav-links {
+    list-style: none;
+    flex: 1;
+}
+
+.nav-links li {
+    margin-bottom: 8px;
+}
+
+.nav-links a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.nav-links a:hover {
+    background: var(--sidebar-active);
+    color: white;
+}
+
+.nav-links a.active {
+    background: var(--primary-color);
+    color: white;
+}
+
+.nav-links i {
+    width: 20px;
+    text-align: center;
+}
+
+.firebase-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--sidebar-active);
+    border-radius: 8px;
+    color: var(--sidebar-text);
+    font-size: 13px;
+}
+
+.firebase-status i {
+    font-size: 10px;
+}
+
+.firebase-status i.connected {
+    color: var(--success-color);
+    animation: pulse 2s infinite;
+}
+
+.firebase-status i.disconnected {
+    color: var(--danger-color);
+}
+
+/* Sync button — desktop sidebar */
+.btn-sync {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+    width: 100%;
+    padding: 11px 16px;
+    background: rgba(79, 70, 229, 0.15);
+    border: 1.5px solid rgba(79, 70, 229, 0.4);
+    border-radius: 8px;
+    color: #a5b4fc;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    -webkit-appearance: none;
+    touch-action: manipulation;
+}
+
+.btn-sync:hover {
+    background: rgba(79, 70, 229, 0.3);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.btn-sync:active {
+    transform: scale(0.97);
+}
+
+.btn-sync.syncing {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.btn-sync.syncing .fa-sync-alt,
+.mobile-sync-btn.syncing .fa-sync-alt {
+    animation: spin 0.8s linear infinite;
+}
+
+.btn-sync.sync-ok {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.5);
+    color: #6ee7b7;
+}
+
+.btn-sync.sync-err {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+/* Mobile top bar actions group */
+.mobile-topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Sync button — mobile top bar */
+.mobile-sync-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    border: 1.5px solid rgba(255,255,255,0.2);
+    color: white;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    -webkit-appearance: none;
+    touch-action: manipulation;
+}
+
+.mobile-sync-btn:hover,
+.mobile-sync-btn:active {
+    background: rgba(79, 70, 229, 0.5);
+    border-color: var(--primary-color);
+    transform: scale(0.95);
+}
+
+.mobile-sync-btn.syncing {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Main Content */
+.main-content {
+    margin-left: 260px;
+    padding: 30px;
+    min-height: 100vh;
+}
+
+.top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.top-header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
+}
+
+/* Hidden on desktop — only shown on mobile via media query */
+.mobile-add-customer-btn { display: none; }
+
+/* Buttons */
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    /* iOS: strip default button styling */
+    -webkit-appearance: none;
+    appearance: none;
+    /* Apple HIG minimum tap target: 44pt */
+    min-height: 44px;
+    /* Prevent double-tap zoom on buttons */
+    touch-action: manipulation;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.btn-secondary {
+    background: var(--card-bg);
+    color: var(--text-primary);
+    border: 2px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+.btn-icon {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-icon:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.btn-danger {
+    background: var(--danger-color);
+    color: white;
+}
+
+.btn-success {
+    background: var(--success-color);
+    color: white;
+}
+
+.btn-whatsapp {
+    background: #25d366;
+    color: white;
+}
+
+.btn-whatsapp:hover {
+    background: #1ebe57;
+}
+
+/* View Content */
+.view-content {
+    display: none;
+}
+
+.view-content.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: var(--card-bg);
+    padding: 24px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card i {
+    font-size: 36px;
+    color: var(--primary-color);
+}
+
+.stat-info h3 {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.stat-info p {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* Dashboard Sections */
+.dashboard-sections {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 24px;
+}
+
+.dashboard-sections section {
+    background: var(--card-bg);
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-sections h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: var(--text-primary);
+}
+
+/* Appointment List */
+.appointment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.appointment-card {
+    background: var(--bg-color);
+    padding: 16px;
+    border-radius: 8px;
+    border-left: 4px solid var(--primary-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.appointment-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transform: translateX(4px);
+}
+
+.appointment-info h4 {
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+
+.appointment-info p {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.appointment-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-scheduled { background: #dbeafe; color: #1e40af; }
+.status-completed { background: #d1fae5; color: #065f46; }
+.status-cancelled { background: #fee2e2; color: #991b1b; }
+.status-no-show { background: #fef3c7; color: #92400e; }
+
+/* Calendar */
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-header h2 {
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.calendar-grid {
+    background: var(--card-bg);
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.calendar-weekdays div {
+    text-align: center;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 12px;
+    font-size: 14px;
+}
+
+.calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+}
+
+.calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: var(--bg-color);
+    position: relative;
+}
+
+.calendar-day:hover {
+    background: var(--primary-color);
+    color: white;
+    transform: scale(1.05);
+}
+
+.calendar-day.today {
+    border: 2px solid var(--primary-color);
+    font-weight: 700;
+}
+
+.calendar-day.other-month {
+    color: var(--text-secondary);
+    opacity: 0.4;
+}
+
+.calendar-day.selected {
+    background: var(--primary-color);
+    color: white;
+}
+
+.calendar-day .day-number {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.calendar-day .appointment-dots {
+    display: flex;
+    gap: 3px;
+    margin-top: 4px;
+}
+
+.appointment-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--primary-color);
+}
+
+.calendar-day.selected .appointment-dot,
+.calendar-day:hover .appointment-dot {
+    background: white;
+}
+
+/* Day Details Panel */
+.day-details {
+    background: var(--card-bg);
+    padding: 24px;
+    border-radius: 12px;
+    margin-top: 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.day-details.hidden {
+    display: none;
+}
+
+.day-details h3 {
+    font-size: 20px;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+}
+
+/* Filters */
+.filters {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.filters input,
+.filters select {
+    flex: 1;
+    min-width: 200px;
+    padding: 10px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    /* 16px minimum prevents iOS Safari auto-zoom on focus */
+    font-size: 16px;
+    -webkit-appearance: none;
+    appearance: none;
+    background-color: #fff;
+}
+
+.filters input:focus,
+.filters select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* Table Container */
+.table-container {
+    background: var(--card-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.appointment-table-item {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s ease;
+}
+
+.appointment-table-item:hover {
+    background: var(--bg-color);
+}
+
+.appointment-table-item:last-child {
+    border-bottom: none;
+}
+
+/* Customers Grid */
+.customers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+}
+
+.customer-card {
+    background: var(--card-bg);
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.customer-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-4px);
+}
+
+.customer-card h3 {
+    font-size: 18px;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+}
+
+.customer-card p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.customer-card p i {
+    width: 16px;
+    color: var(--primary-color);
+}
+
+.customer-stats {
+    display: flex;
+    gap: 16px;
+    margin: 16px 0;
+    padding: 12px;
+    background: var(--bg-color);
+    border-radius: 8px;
+}
+
+.customer-stat {
+    text-align: center;
+    flex: 1;
+}
+
+.customer-stat .number {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.customer-stat .label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.customer-card .btn-group {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+/* History Container */
+.history-container {
+    background: var(--card-bg);
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.history-group {
+    margin-bottom: 32px;
+}
+
+.history-group h3 {
+    font-size: 16px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.history-item {
+    padding: 16px;
+    background: var(--bg-color);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    border-left: 3px solid var(--primary-color);
+}
+
+/* Settings Container */
+.settings-container {
+    background: var(--card-bg);
+    padding: 32px;
+    border-radius: 12px;
+    max-width: 800px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.settings-container h2 {
+    font-size: 20px;
+    margin-bottom: 20px;
+    color: var(--text-primary);
+}
+
+.firebase-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 12px;
+    background: #dbeafe;
+    border-radius: 8px;
+    color: #1e40af;
+    font-size: 13px;
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 10px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    /* Must be 16px+ to prevent iOS Safari auto-zoom when tapping an input */
+    font-size: 16px;
+    font-family: inherit;
+    /* Remove iOS inner shadow / default styling on inputs */
+    -webkit-appearance: none;
+    appearance: none;
+    background-color: #fff;
+    /* Ensure inputs are scrollable/editable on iOS */
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+.form-group select {
+    /* Custom arrow since -webkit-appearance: none removes it */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' viewBox='0 0 12 8'%3E%3Cpath stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.form-group small {
+    display: block;
+    margin-top: 4px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.customer-select-group {
+    display: flex;
+    gap: 8px;
+}
+
+.customer-select-group select {
+    flex: 1;
+}
+
+/* Prevent iOS page jump when modal opens (body gets position:fixed) */
+body.modal-open-scroll-fix {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    /* dvh = dynamic viewport height — correct on iOS Safari with toolbar */
+    height: 100vh;
+    height: 100dvh;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+    /* Prevent background page scrolling on iOS when modal open */
+    overscroll-behavior: contain;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: var(--card-bg);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    max-height: 90dvh;
+    overflow-y: auto;
+    /* Smooth momentum scrolling inside modal on iOS */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.btn-close:hover {
+    background: var(--bg-color);
+    color: var(--text-primary);
+}
+
+.modal form {
+    padding: 24px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+/* Toast Notification */
+.toast {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: var(--text-primary);
+    color: white;
+    padding: 16px 24px;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+    z-index: 3000;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s ease;
+    max-width: 380px;
+    line-height: 1.6;
+    font-size: 14px;
+    white-space: pre-line;
+}
+
+.toast.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.toast.success {
+    background: var(--success-color);
+}
+
+.toast.error {
+    background: var(--danger-color);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+}
+
+.empty-state i {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+}
+
+.empty-state h3 {
+    font-size: 20px;
+    margin-bottom: 8px;
+}
+
+/* Duration Badge */
+.dur-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    background: #fef3c7;
+    color: #92400e;
+    margin-left: 4px;
+}
+
+/* ==================== SERVICE COMBO (select + text input) ==================== */
+
+.service-select-dropdown {
+    width: 100%;
+    padding: 10px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 16px;
+    font-family: inherit;
+    background: #fff;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    margin-bottom: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' viewBox='0 0 12 8'%3E%3Cpath stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+}
+
+.service-select-dropdown:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79,70,229,.1);
+}
+
+.service-or-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+
+.service-or-divider::before,
+.service-or-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+}
+
+/* ==================== SETTINGS - SERVICES ==================== */
+
+.settings-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 40px 0;
+}
+
+.settings-hint {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin: 4px 0 0 0;
+    line-height: 1.5;
+}
+
+.services-section {
+    background: #f8f7ff;
+    border: 1.5px solid #e0e7ff;
+    border-radius: 16px;
+    padding: 28px;
+}
+
+.services-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.services-section-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 4px 0;
+}
+
+.services-section-header h2 i {
+    color: var(--primary-color);
+}
+
+.services-total-badge {
+    background: var(--primary-color);
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 20px;
+    white-space: nowrap;
+    align-self: center;
+}
+
+.service-input-card {
+    background: #fff;
+    border: 2px solid #e0e7ff;
+    border-radius: 12px;
+    padding: 6px 6px 6px 16px;
+    margin-bottom: 24px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.service-input-card:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(79,70,229,.1);
+}
+
+.service-input-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.service-input-icon {
+    color: var(--primary-color);
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.service-input-inner input {
+    flex: 1;
+    border: none;
+    outline: none;
+    /* 16px prevents iOS auto-zoom */
+    font-size: 16px;
+    font-family: inherit;
+    background: transparent;
+    color: var(--text-primary);
+    padding: 10px 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+.service-input-inner input::placeholder {
+    color: #a5b4fc;
+}
+
+.service-input-inner .btn {
+    padding: 10px 20px;
+    font-size: 14px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.services-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.service-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1.5px solid #c7d2fe;
+    color: #3730a3;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 30px;
+    transition: all 0.2s ease;
+    animation: chipIn 0.2s ease;
+}
+
+@keyframes chipIn {
+    from { opacity: 0; transform: scale(0.85); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+.service-chip:hover {
+    background: #eef2ff;
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 8px rgba(79,70,229,.15);
+}
+
+.service-chip i.chip-icon {
+    color: #6366f1;
+    font-size: 13px;
+}
+
+.service-chip-del {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #a5b4fc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 11px;
+    padding: 0;
+    transition: all 0.2s;
+    margin-left: 2px;
+}
+
+.service-chip-del:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.services-empty {
+    text-align: center;
+    padding: 36px 20px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    background: #fff;
+    border-radius: 12px;
+    border: 2px dashed #c7d2fe;
+}
+
+.services-empty i {
+    font-size: 40px;
+    display: block;
+    margin-bottom: 12px;
+    color: #c7d2fe;
+}
+
+.services-empty p {
+    font-size: 15px;
+    font-weight: 500;
+    color: #6366f1;
+    margin-bottom: 4px;
+}
+
+.services-empty small {
+    color: var(--text-secondary);
+}
+
+/* ==================== DEBTS ==================== */
+
+.debt-summary-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 22px;
+}
+
+.debt-stat {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--card-bg);
+    border-radius: 14px;
+    padding: 16px 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+
+.debt-stat i {
+    font-size: 22px;
+    opacity: .85;
+}
+
+.debt-stat--total  i { color: #4f46e5; }
+.debt-stat--partial i { color: #d97706; }
+.debt-stat--overdue i { color: #dc2626; }
+.debt-stat--paid   i { color: #10b981; }
+
+.debt-stat-label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.debt-stat-value {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.debt-filters { margin-bottom: 20px; }
+
+.debts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 18px;
+}
+
+.debt-card {
+    background: var(--card-bg);
+    border-radius: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.1);
+    overflow: hidden;
+    border-left: 5px solid var(--border-color);
+    transition: box-shadow 0.25s ease, transform 0.2s ease;
+}
+
+.debt-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.12); transform: translateY(-2px); }
+.debt-card--unpaid  { border-left-color: #ef4444; }
+.debt-card--partial { border-left-color: #f59e0b; }
+.debt-card--overdue { border-left-color: #dc2626; background: #fff9f9; }
+.debt-card--paid    { border-left-color: #10b981; opacity: .85; }
+
+.debt-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 10px;
+}
+
+.debt-card-customer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.debt-card-customer i { color: var(--primary-color); font-size: 18px; }
+
+.debt-status-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+}
+
+.debt-status--unpaid  { background: #fee2e2; color: #b91c1c; }
+.debt-status--partial { background: #fef3c7; color: #92400e; }
+.debt-status--overdue { background: #fecaca; color: #7f1d1d; }
+.debt-status--paid    { background: #d1fae5; color: #065f46; }
+
+.debt-card-body { padding: 0 18px 14px; }
+
+.debt-amounts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.debt-amount-item { text-align: center; }
+
+.debt-amount-label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+
+.debt-amount-value {
+    display: block;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.debt-amount-value.debt-paid    { color: #10b981; }
+.debt-amount-value.debt-remain.has-remain { color: #ef4444; }
+
+.debt-progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.debt-progress-bar {
+    flex: 1;
+    height: 7px;
+    background: var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.debt-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    border-radius: 10px;
+    transition: width 0.4s ease;
+}
+
+.debt-progress-pct {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    min-width: 36px;
+    text-align: right;
+}
+
+.debt-meta {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.debt-meta i { color: var(--primary-color); width: 14px; text-align: center; }
+.debt-overdue-text { color: #dc2626 !important; font-weight: 600; }
+.debt-notes { font-style: italic; }
+
+.debt-card-actions {
+    display: flex;
+    gap: 8px;
+    padding: 10px 18px 14px;
+    border-top: 1px solid var(--border-color);
+    flex-wrap: wrap;
+}
+
+.btn-success {
+    background: #10b981;
+    color: white;
+    border: none;
+}
+
+.btn-success:hover { background: #059669; }
+
+/* Responsive debts */
+@media (max-width: 900px) {
+    .debt-summary-bar { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ==================== INVENTORY ==================== */
+
+.inv-stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.inv-stat {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--card-bg);
+    border-radius: 14px;
+    padding: 16px 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    border-left: 4px solid var(--primary-color);
+}
+
+.inv-stat i { font-size: 22px; color: var(--primary-color); opacity: .85; }
+.inv-stat--warn  { border-left-color: #f59e0b; }
+.inv-stat--warn  i { color: #f59e0b; }
+.inv-stat--green { border-left-color: #10b981; }
+.inv-stat--green i { color: #10b981; }
+.inv-stat--purple { border-left-color: #8b5cf6; }
+.inv-stat--purple i { color: #8b5cf6; }
+
+.inv-stat-label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.inv-stat-value {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.inv-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.inv-search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+}
+
+.inv-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.inv-search-wrap input {
+    width: 100%;
+    padding: 10px 36px 10px 36px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--card-bg);
+    color: var(--text-primary);
+}
+
+.inv-search-wrap input:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(79,70,229,.1); }
+
+.inv-clear-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px 4px;
+}
+
+.inv-toolbar-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.inv-search-info {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    min-height: 18px;
+}
+
+.inv-table-wrap {
+    overflow-x: auto;
+    background: var(--card-bg);
+    border-radius: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+
+.inv-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.inv-table thead th {
+    background: #f9fafb;
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.inv-table tbody tr {
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.15s ease;
+}
+
+.inv-table tbody tr:last-child { border-bottom: none; }
+.inv-table tbody tr:hover { background: #f9fafb; }
+
+.inv-table tbody td {
+    padding: 12px 16px;
+    color: var(--text-primary);
+    vertical-align: middle;
+}
+
+.inv-badge-low {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.inv-badge-ok {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.inv-badge-import {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #ede9fe;
+    color: #5b21b6;
+}
+
+.inv-qty-low { color: #b91c1c; font-weight: 700; }
+
+/* Responsive */
+@media (max-width: 900px) {
+    .inv-stats-bar { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+    .inv-stats-bar { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .inv-stat { padding: 12px 14px; }
+    .inv-stat-value { font-size: 17px; }
+    .inv-toolbar { flex-direction: column; align-items: stretch; }
+    .inv-toolbar-actions { justify-content: flex-start; }
+}
+
+/* ==================== APPOINTMENTS TABLE ==================== */
+
+.appt-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.appt-table thead th {
+    background: var(--bg-color);
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.appt-table tbody tr {
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.15s;
+}
+
+.appt-table tbody tr:hover {
+    background: #f5f5ff;
+}
+
+.appt-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.appt-table td {
+    padding: 14px 16px;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+.appt-table td .actions {
+    display: flex;
+    gap: 6px;
+}
+
+/* ==================== MOBILE TOP BAR + BOTTOM NAV (hidden on desktop) ==================== */
+
+.mobile-topbar,
+.mobile-bottom-nav {
+    display: none;
+}
+
+/* iOS standalone (added to home screen): pad top bar for status bar */
+@media (display-mode: standalone) {
+    .mobile-topbar {
+        padding-top: env(safe-area-inset-top);
+        height: calc(56px + env(safe-area-inset-top));
+    }
+    .main-content {
+        padding-top: calc(72px + env(safe-area-inset-top));
+    }
+}
+
+/* ==================== TABLET ==================== */
+@media (max-width: 1024px) {
+    .sidebar { width: 220px; }
+    .main-content { margin-left: 220px; }
+    .dashboard-sections { grid-template-columns: 1fr; }
+}
+
+/* ==================== MOBILE (max 768px) ==================== */
+@media (max-width: 768px) {
+
+    .sidebar { display: none; }
+
+    .mobile-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 56px;
+        background: var(--sidebar-bg);
+        color: white;
+        padding: 0 16px;
+        z-index: 1100;
+        box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+
+    .mobile-logo {
+        font-size: 18px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: white;
+    }
+
+    .mobile-logo i { color: var(--primary-color); font-size: 20px; }
+
+    .mobile-fab {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        border: none;
+        color: white;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(79,70,229,.5);
+        transition: transform 0.2s;
+    }
+
+    .mobile-fab:active { transform: scale(0.92); }
+
+    .mobile-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        /* Grows with iOS home indicator */
+        height: calc(62px + env(safe-area-inset-bottom));
+        background: var(--sidebar-bg);
+        border-top: 1px solid rgba(255,255,255,.08);
+        z-index: 1100;
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        overscroll-behavior: none;
+    }
+
+    .mob-nav-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        color: #9ca3af;
+        text-decoration: none;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: .3px;
+        transition: color 0.2s;
+        padding: 6px 0;
+    }
+
+    .mob-nav-item i { font-size: 18px; }
+
+    .mob-nav-item.active,
+    .mob-nav-item:active {
+        color: #818cf8;
+    }
+
+    .mob-nav-item.active i { color: var(--primary-color); }
+
+    .main-content {
+        margin-left: 0;
+        /* Bottom = nav bar 62px + iOS home indicator + extra breathing room */
+        padding: 72px 14px calc(80px + env(safe-area-inset-bottom));
+        padding-left: calc(14px + env(safe-area-inset-left));
+        padding-right: calc(14px + env(safe-area-inset-right));
+    }
+
+    .top-header {
+        display: none;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .stat-card {
+        padding: 16px;
+        gap: 12px;
+    }
+
+    .stat-card i { font-size: 26px; }
+    .stat-info h3 { font-size: 24px; }
+
+    .dashboard-sections {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .dashboard-sections section {
+        padding: 16px;
+    }
+
+    .appointment-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .appointment-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .calendar-header { padding: 14px 16px; }
+    .calendar-header h2 { font-size: 17px; }
+    .calendar-grid { padding: 12px; }
+    .calendar-weekdays div { font-size: 11px; padding: 6px 2px; }
+    .calendar-days { gap: 3px; }
+    .calendar-day { padding: 6px 2px; font-size: 12px; border-radius: 6px; }
+    .calendar-day .day-number { font-size: 13px; }
+    .appointment-dot { width: 5px; height: 5px; }
+
+    .day-details { padding: 16px; }
+
+    .filters {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .appt-table thead { display: none; }
+    .appt-table, .appt-table tbody, .appt-table tr, .appt-table td { display: block; width: 100%; }
+
+    .appt-table tr {
+        background: var(--card-bg);
+        border-radius: 10px;
+        margin-bottom: 12px;
+        padding: 14px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.08);
+        border: none;
+    }
+
+    .appt-table td {
+        padding: 4px 0;
+        font-size: 14px;
+        border: none;
+    }
+
+    .appt-table td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        font-size: 11px;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        display: block;
+        margin-bottom: 2px;
+    }
+
+    .appt-table td .actions {
+        margin-top: 8px;
+        justify-content: flex-start;
+    }
+
+    .customers-grid { grid-template-columns: 1fr; gap: 12px; }
+    .customer-card { padding: 16px; }
+
+    .form-row { grid-template-columns: 1fr; gap: 0; }
+    .debt-summary-bar { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .debts-grid { grid-template-columns: 1fr; }
+    .debt-stat { padding: 12px 14px; }
+    .debt-stat-value { font-size: 17px; }
+    .btn-small { min-height: 36px; }
+    .mob-nav-item { min-height: 44px; }
+
+    .modal-content {
+        width: 100%;
+        max-width: 100%;
+        /* dvh adjusts when iOS Safari toolbar shows/hides */
+        height: 100dvh;
+        height: 100vh;
+        max-height: 100dvh;
+        max-height: 100vh;
+        border-radius: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        /* Push content above iOS home indicator */
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .modal-content form {
+        flex: 1;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+
+    .modal {
+        align-items: flex-end;
+    }
+
+    .settings-container {
+        padding: 20px 16px;
+    }
+
+    .services-section { padding: 18px; }
+    /* Keep 16px to prevent iOS zoom */
+    .service-input-inner input { font-size: 16px; }
+
+    .history-container { padding: 16px; }
+
+
+    /* Toast above bottom nav + iOS home indicator */
+    .toast {
+        bottom: calc(76px + env(safe-area-inset-bottom));
+        left: 16px;
+        right: 16px;
+        text-align: center;
+    }
+
+    .header-actions { display: none; }
+
+    /* Mobile-only New Customer button inside customers view */
+    .mobile-add-customer-btn {
+        display: flex !important;
+        width: 100%;
+        justify-content: center;
+        padding: 12px;
+        font-size: 15px;
+        border-radius: 10px;
+        margin-top: 4px;
+        touch-action: manipulation;
+    }
+}
+
+/* ==================== LOGIN SCREEN ==================== */
+#loginScreen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    padding: 24px;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+}
+#loginScreen.hidden { display: none; }
+
+.login-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+    text-align: center;
+}
+
+.login-logo {
+    width: 64px;
+    height: 64px;
+    background: var(--primary-color);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 28px;
+    color: #fff;
+}
+
+.login-card h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.login-card p {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 28px;
+}
+
+.login-field {
+    position: relative;
+    margin-bottom: 16px;
+    text-align: left;
+}
+
+.login-field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.login-field input {
+    width: 100%;
+    padding: 14px 48px 14px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    background: #f9fafb;
+    color: var(--text-primary);
+    font-family: inherit;
+}
+
+.login-field input:focus {
+    border-color: var(--primary-color);
+    background: #fff;
+}
+
+.login-field input.error {
+    border-color: var(--danger-color);
+    animation: shake 0.4s ease;
+}
+
+.toggle-pw {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 16px;
+    padding: 0;
+    touch-action: manipulation;
+}
+
+.login-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: var(--danger-color);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+    text-align: left;
+}
+.login-error.show { display: block; }
+
+.login-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    touch-action: manipulation;
+    font-family: inherit;
+    margin-top: 4px;
+}
+.login-btn:hover  { background: var(--primary-dark); }
+.login-btn:active { transform: scale(0.98); }
+.login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.login-footer {
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+@keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20%      { transform: translateX(-8px); }
+    40%      { transform: translateX(8px); }
+    60%      { transform: translateX(-6px); }
+    80%      { transform: translateX(6px); }
+}
+
+/* Logout button in sidebar */
+.btn-logout {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 14px;
+    background: rgba(239,68,68,0.15);
+    color: #f87171;
+    border: 1px solid rgba(239,68,68,0.25);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    touch-action: manipulation;
+    font-family: inherit;
+    margin-top: 8px;
+}
+.btn-logout:hover { background: rgba(239,68,68,0.25); }
+
+/* Mobile logout in topbar */
+.mobile-logout-btn {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.7);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 8px;
+    touch-action: manipulation;
+    border-radius: 8px;
+}
+.mobile-logout-btn:hover { color: #f87171; }
+
+/* ==================== POS VIEW STYLES ==================== */
+.pos-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+}
+@media (max-width: 900px) {
+    .pos-layout { grid-template-columns: 1fr; }
+}
+
+.pos-panel {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.pos-panel h2 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pos-search-bar {
+    position: relative;
+    margin-bottom: 10px;
+}
+.pos-search-bar input {
+    width: 100%;
+    padding: 10px 36px 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: inherit;
+    background: #f9fafb;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.2s;
+}
+.pos-search-bar input:focus { border-color: var(--primary-color); background:#fff; }
+.pos-search-icon {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    font-size: 14px;
+    pointer-events: none;
+}
+
+#posProductList {
+    max-height: 360px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.pos-product-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    user-select: none;
+}
+.pos-product-item:hover { background: #f3f4f6; border-color: var(--primary-color); }
+.pos-product-item.out-of-stock { opacity: 0.5; cursor: not-allowed; }
+.pos-product-item.low-stock { border-color: #f59e0b; background: #fffbeb; }
+.pos-product-name { font-weight: 600; font-size: 14px; }
+.pos-product-stock { font-size: 12px; margin-top: 2px; }
+.pos-product-stock.low { color: #d97706; font-weight: 600; }
+.pos-product-stock.ok  { color: var(--text-secondary); }
+.pos-product-price { font-weight: 700; font-size: 15px; color: var(--primary-color); white-space: nowrap; }
+
+/* Cart */
+.pos-customer-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+@media (max-width: 500px) { .pos-customer-fields { grid-template-columns: 1fr; } }
+.pos-customer-fields .form-group { margin-bottom: 0; }
+
+.pos-loyalty-badge {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(90deg,#fffbeb,#fff7ed);
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+}
+.pos-loyalty-badge .loyalty-left { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #92400e; }
+.pos-loyalty-badge .loyalty-pts  { font-size: 22px; font-weight: 800; color: #d97706; }
+.pos-loyalty-badge .pts-earn     { font-size: 11px; font-weight: 700; color: #16a34a; margin-top: 1px; }
+
+#posCartItems {
+    min-height: 60px;
+    max-height: 240px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.pos-cart-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: #f9fafb;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+.pos-cart-item-info { flex: 1; min-width: 0; }
+.pos-cart-item-name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pos-cart-item-price { font-size: 12px; color: var(--text-secondary); }
+.pos-cart-qty {
+    display: flex; align-items: center; gap: 4px;
+}
+.pos-cart-qty input {
+    width: 44px; text-align: center; padding: 4px; border: 1px solid var(--border-color);
+    border-radius: 6px; font-size: 13px; font-family: inherit;
+}
+.pos-cart-line-total { font-weight: 700; font-size: 14px; white-space: nowrap; min-width: 56px; text-align: right; }
+.pos-cart-del { color: var(--danger-color); background: none; border: none; cursor: pointer; padding: 4px; font-size: 14px; }
+
+.pos-totals { border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 4px; }
+.pos-totals-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin-bottom: 6px; }
+.pos-totals-row.grand { font-size: 18px; font-weight: 800; color: var(--text-primary); margin-top: 6px; border-top: 2px solid var(--border-color); padding-top: 8px; }
+.pos-discount-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.pos-discount-row input { width: 72px; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; text-align:right; font-family: inherit; }
+.pos-discount-row select { padding: 6px 6px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; font-family: inherit; }
+.pos-discount-row button { padding: 6px 10px; border-radius: 6px; border: none; background: var(--secondary-color); color: #fff; font-size: 12px; cursor: pointer; font-family: inherit; }
+.pos-action-btns { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 10px; }
+.pos-action-btns .btn-process { background: var(--primary-color); color:#fff; border:none; border-radius:8px; padding: 13px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; transition:background 0.2s; }
+.pos-action-btns .btn-process:hover { background: var(--primary-dark); }
+.pos-action-btns .btn-clear { background: var(--danger-color); color:#fff; border:none; border-radius:8px; padding:13px 14px; font-size:15px; cursor:pointer; font-family:inherit; transition:background 0.2s; }
+.pos-action-btns .btn-clear:hover { background: #dc2626; }
+
+/* Customer suggestions dropdown */
+#posCustSuggestions {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-top: 4px;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    max-height: 180px;
+    overflow-y: auto;
+    position: relative;
+    z-index: 20;
+    display: none;
+}
+.pos-sugg-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-color); font-size: 13px; }
+.pos-sugg-item:last-child { border-bottom: none; }
+.pos-sugg-item:hover { background: #f3f4ff; }
+.pos-sugg-name { font-weight: 600; color: var(--text-primary); }
+.pos-sugg-phone { font-size: 11px; color: var(--text-secondary); }
+
+/* Receipt section */
+.pos-receipt-wrapper { margin-top: 20px; }
+.pos-receipt-actions { display: flex; justify-content: center; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+
+/* 80mm Thermal Receipt */
+.receipt-container {
+    background: white;
+    padding: 6mm;
+    border: 1px solid #ddd;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 11px;
+    line-height: 1.35;
+    width: 80mm;
+    max-width: 80mm;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+.receipt-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 11px;
+    line-height: 1.35;
+}
+.receipt-table th, .receipt-table td {
+    border: none; padding: 2px 0; text-align: left; vertical-align: top;
+}
+.receipt-table th { background: transparent; font-weight: 700; padding-top: 4px; padding-bottom: 4px; }
+.receipt-table .text-right { text-align: right; }
+.receipt-table .text-center { text-align: center; }
+.receipt-table td:first-child { word-break: break-word; }
+.dotted-line { border-top: 1px dashed #000; margin: 8px 0; }
+
+@media print {
+    body * { visibility: hidden; }
+    .receipt-container, .receipt-container * { visibility: visible; }
+    .receipt-container {
+        position: absolute; left: 0; top: 0;
+        width: 80mm; max-width: 80mm; height: auto;
+        margin: 0; padding: 4mm; box-sizing: border-box; border: none;
+    }
+    @page { size: 80mm auto; margin: 0; }
+}
+
+/* POS Stats bar */
+.pos-stats-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.pos-stat {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 120px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border-left: 3px solid var(--primary-color);
+}
+.pos-stat i { font-size: 18px; color: var(--primary-color); }
+.pos-stat-label { font-size: 11px; color: var(--text-secondary); display:block; }
+.pos-stat-value { font-size: 18px; font-weight: 700; color: var(--text-primary); display:block; }
+.pos-stat--green { border-left-color: var(--secondary-color); }
+.pos-stat--green i { color: var(--secondary-color); }
+.pos-stat--warn  { border-left-color: var(--warning-color); }
+.pos-stat--warn i { color: var(--warning-color); }
+
+.pos-empty-cart {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 16px 0;
+    font-size: 13px;
+}
+.pos-empty-cart i { font-size: 28px; display: block; margin-bottom: 6px; opacity: 0.4; }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<!-- ==================== LOGIN SCREEN ==================== -->
+<div id="loginScreen">
+    <div class="login-card">
+        <div class="login-logo"><i class="fas fa-calendar-check"></i></div>
+        <h1>Nail by Sacha Khalil</h1>
+        <p>Enter your password to continue</p>
+
+        <div class="login-error" id="loginError">
+            <i class="fas fa-exclamation-circle"></i> Incorrect password. Try again.
+        </div>
+
+        <form id="loginForm" onsubmit="return false;">
+        <input type="text" name="username" value="neoskin" autocomplete="username" style="display:none;">
+        <div class="login-field">
+            <label>Password</label>
+            <input type="password" id="loginPassword" placeholder="Enter password" autocomplete="current-password">
+            <button class="toggle-pw" id="togglePw" tabindex="-1" type="button">
+                <i class="fas fa-eye" id="togglePwIcon"></i>
+            </button>
+        </div>
+
+        <button class="login-btn" id="loginBtn" type="submit">
+            <i class="fas fa-sign-in-alt"></i> Sign In
+        </button>
+        </form>
+
+        <div class="login-footer">Nail by Sacha Khalil &copy; 2026</div>
+    </div>
+</div>
+
+    <!-- Desktop Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-calendar-check"></i>
+                <span>Nail by Sacha Khalil</span>
+            </div>
+        </div>
+        <ul class="nav-links">
+            <li><a href="#" data-view="dashboard" class="active"><i class="fas fa-home"></i> <span>Dashboard</span></a></li>
+            <li><a href="#" data-view="calendar"><i class="fas fa-calendar"></i> <span>Calendar</span></a></li>
+            <li><a href="#" data-view="appointments"><i class="fas fa-list"></i> <span>Appointments</span></a></li>
+            <li><a href="#" data-view="customers"><i class="fas fa-users"></i> <span>Customers</span></a></li>
+            <li><a href="#" data-view="history"><i class="fas fa-history"></i> <span>History</span></a></li>
+            <li><a href="#" data-view="inventory"><i class="fas fa-boxes"></i> <span>Inventory</span></a></li>
+            <li><a href="#" data-view="pos"><i class="fas fa-cash-register"></i> <span>POS</span></a></li>
+            <li><a href="#" data-view="debts"><i class="fas fa-file-invoice-dollar"></i> <span>Debts</span></a></li>
+            <li><a href="#" data-view="settings"><i class="fas fa-cog"></i> <span>Settings</span></a></li>
+        </ul>
+        <div class="firebase-status">
+            <i class="fas fa-circle" id="firebaseIndicator"></i>
+            <span id="firebaseStatus">Connecting...</span>
+        </div>
+        <button class="btn-sync" id="syncBtn" title="Sync data from Firebase">
+            <i class="fas fa-sync-alt" id="syncIcon"></i>
+            <span>Sync Data</span>
+        </button>
+        <button class="btn-logout" id="logoutBtn">
+            <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+        <div style="text-align:center;font-size:10px;color:#4b5563;margin-top:6px;opacity:0.6;">v1.0.4</div>
+    </nav>
+
+    <!-- Mobile Top Bar -->
+    <header class="mobile-topbar">
+        <div class="mobile-logo"><i class="fas fa-calendar-check"></i> Nail by Sacha Khalil</div>
+        <div class="mobile-topbar-actions">
+            <button class="mobile-sync-btn" id="mobileSyncBtn" title="Sync data">
+                <i class="fas fa-sync-alt" id="mobileSyncIcon"></i>
+            </button>
+            <button class="mobile-logout-btn" id="mobileLogoutBtn" title="Logout">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
+            <button class="mobile-fab" id="mobileNewApptBtn">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="mobile-bottom-nav">
+        <a href="#" data-view="dashboard" class="mob-nav-item active">
+            <i class="fas fa-home"></i><span>Home</span>
+        </a>
+        <a href="#" data-view="calendar" class="mob-nav-item">
+            <i class="fas fa-calendar"></i><span>Calendar</span>
+        </a>
+        <a href="#" data-view="appointments" class="mob-nav-item">
+            <i class="fas fa-list"></i><span>Appts</span>
+        </a>
+        <a href="#" data-view="customers" class="mob-nav-item">
+            <i class="fas fa-users"></i><span>Clients</span>
+        </a>
+        <a href="#" data-view="debts" class="mob-nav-item">
+            <i class="fas fa-file-invoice-dollar"></i><span>Debts</span>
+        </a>
+        <a href="#" data-view="inventory" class="mob-nav-item">
+            <i class="fas fa-boxes"></i><span>Stock</span>
+        </a>
+        <a href="#" data-view="pos" class="mob-nav-item">
+            <i class="fas fa-cash-register"></i><span>POS</span>
+        </a>
+        <a href="#" data-view="settings" class="mob-nav-item">
+            <i class="fas fa-cog"></i><span>More</span>
+        </a>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="top-header">
+            <h1 id="pageTitle">Dashboard</h1>
+            <div class="header-actions">
+                <button class="btn btn-primary" id="newAppointmentBtn">
+                    <i class="fas fa-plus"></i> New Appointment
+                </button>
+                <button class="btn btn-secondary" id="newCustomerBtn">
+                    <i class="fas fa-user-plus"></i> New Customer
+                </button>
+            </div>
+        </header>
+
+        <!-- Dashboard View -->
+        <div id="dashboardView" class="view-content active">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <i class="fas fa-calendar-day"></i>
+                    <div class="stat-info">
+                        <h3 id="todayCount">0</h3>
+                        <p>Today's Appointments</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-clock"></i>
+                    <div class="stat-info">
+                        <h3 id="upcomingCount">0</h3>
+                        <p>Upcoming</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-users"></i>
+                    <div class="stat-info">
+                        <h3 id="customersCount">0</h3>
+                        <p>Total Customers</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-check-circle"></i>
+                    <div class="stat-info">
+                        <h3 id="completedCount">0</h3>
+                        <p>Completed</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-sections">
+                <section class="today-appointments">
+                    <h2>Today's Schedule</h2>
+                    <div id="todayList" class="appointment-list"></div>
+                </section>
+                <section class="upcoming-appointments">
+                    <h2>Upcoming Appointments</h2>
+                    <div id="upcomingList" class="appointment-list"></div>
+                </section>
+            </div>
+        </div>
+
+        <!-- Calendar View -->
+        <div id="calendarView" class="view-content">
+            <div class="calendar-header">
+                <button class="btn-icon" id="prevMonth"><i class="fas fa-chevron-left"></i></button>
+                <h2 id="currentMonth">January 2024</h2>
+                <button class="btn-icon" id="nextMonth"><i class="fas fa-chevron-right"></i></button>
+            </div>
+            <div class="calendar-grid">
+                <div class="calendar-weekdays">
+                    <div>Sun</div>
+                    <div>Mon</div>
+                    <div>Tue</div>
+                    <div>Wed</div>
+                    <div>Thu</div>
+                    <div>Fri</div>
+                    <div>Sat</div>
+                </div>
+                <div id="calendarDays" class="calendar-days"></div>
+            </div>
+            <div id="dayDetails" class="day-details hidden">
+                <h3 id="selectedDate"></h3>
+                <div id="dayAppointments"></div>
+            </div>
+        </div>
+
+        <!-- Appointments View -->
+        <div id="appointmentsView" class="view-content">
+            <div class="filters">
+                <input type="text" id="searchAppointment" placeholder="Search by customer or service...">
+                <select id="filterStatus">
+                    <option value="">All Status</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="no-show">No Show</option>
+                </select>
+                <input type="date" id="filterDate">
+            </div>
+            <div id="appointmentsList" class="table-container"></div>
+        </div>
+
+        <!-- Customers View -->
+        <div id="customersView" class="view-content">
+            <div class="filters">
+                <input type="text" id="searchCustomer" placeholder="Search customers...">
+                <button class="btn btn-primary mobile-add-customer-btn" id="mobileAddCustomerBtn">
+                    <i class="fas fa-user-plus"></i> New Customer
+                </button>
+            </div>
+            <div id="customersList" class="customers-grid"></div>
+        </div>
+
+        <!-- Inventory View -->
+        <div id="inventoryView" class="view-content">
+
+            <!-- Stats Bar -->
+            <div class="inv-stats-bar">
+                <div class="inv-stat">
+                    <i class="fas fa-boxes"></i>
+                    <div>
+                        <span class="inv-stat-label">Total Products</span>
+                        <span class="inv-stat-value" id="invTotalProducts">0</span>
+                    </div>
+                </div>
+                <div class="inv-stat inv-stat--warn">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <div>
+                        <span class="inv-stat-label">Low Stock</span>
+                        <span class="inv-stat-value" id="invLowStock">0</span>
+                    </div>
+                </div>
+                <div class="inv-stat inv-stat--green">
+                    <i class="fas fa-dollar-sign"></i>
+                    <div>
+                        <span class="inv-stat-label">Retail Value</span>
+                        <span class="inv-stat-value" id="invRetailValue">0.00</span>
+                    </div>
+                </div>
+                <div class="inv-stat inv-stat--purple">
+                    <i class="fas fa-tag"></i>
+                    <div>
+                        <span class="inv-stat-label">Cost Value</span>
+                        <span class="inv-stat-value" id="invCostValue">0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="inv-toolbar">
+                <div class="inv-search-wrap">
+                    <i class="fas fa-search inv-search-icon"></i>
+                    <input type="text" id="invSearch" placeholder="Search by name or barcode..." oninput="renderInventory()">
+                    <button class="inv-clear-btn" onclick="document.getElementById('invSearch').value=''; renderInventory();"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="inv-toolbar-actions">
+                    <button class="btn btn-primary" id="newProductBtn"><i class="fas fa-plus"></i> Add Product</button>
+                    <button class="btn btn-secondary" onclick="invExportExcel()"><i class="fas fa-file-excel"></i> Export</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('invImportFile').click()"><i class="fas fa-upload"></i> Import Excel</button>
+                    <input type="file" id="invImportFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="invImportExcel(this)">
+                </div>
+            </div>
+            <div id="invSearchInfo" class="inv-search-info"></div>
+
+            <!-- Table -->
+            <div class="inv-table-wrap">
+                <table class="inv-table">
+                    <thead>
+                        <tr>
+                            <th>Product Name</th>
+                            <th>Barcode</th>
+                            <th>Purchase Price</th>
+                            <th>Sale Price</th>
+                            <th>Quantity</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- POS View -->
+        <div id="posView" class="view-content">
+
+            <!-- POS Stats Bar -->
+            <div class="pos-stats-bar">
+                <div class="pos-stat">
+                    <i class="fas fa-shopping-cart"></i>
+                    <div>
+                        <span class="pos-stat-label">Today's Sales</span>
+                        <span class="pos-stat-value" id="posTodaySales">0.00</span>
+                    </div>
+                </div>
+                <div class="pos-stat pos-stat--green">
+                    <i class="fas fa-receipt"></i>
+                    <div>
+                        <span class="pos-stat-label">Transactions</span>
+                        <span class="pos-stat-value" id="posTodayTx">0</span>
+                    </div>
+                </div>
+                <div class="pos-stat pos-stat--warn">
+                    <i class="fas fa-boxes"></i>
+                    <div>
+                        <span class="pos-stat-label">Items in Stock</span>
+                        <span class="pos-stat-value" id="posProductCount">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main POS Layout -->
+            <div class="pos-layout">
+
+                <!-- LEFT: Product Selection -->
+                <div class="pos-panel">
+                    <h2><i class="fas fa-spa"></i> Products &amp; Services</h2>
+
+                    <!-- Barcode scan -->
+                    <div class="pos-search-bar" style="margin-bottom:8px;">
+                        <input type="text" id="posBarcodeInput" placeholder="Scan barcode and press Enter…" title="Scan or type a product barcode"
+                               style="font-size:16px;" autocomplete="off">
+                        <i class="fas fa-barcode pos-search-icon"></i>
+                    </div>
+
+                    <!-- Product search -->
+                    <div class="pos-search-bar">
+                        <input type="text" id="posProductSearch" placeholder="Search products by name…"
+                               style="font-size:16px;" autocomplete="off" oninput="posFilterProducts(this.value)">
+                        <i class="fas fa-search pos-search-icon"></i>
+                    </div>
+
+                    <div id="posProductList">
+                        <!-- Products rendered here -->
+                    </div>
+                </div>
+
+                <!-- RIGHT: Cart & Checkout -->
+                <div class="pos-panel">
+                    <h2><i class="fas fa-shopping-cart"></i> Sale</h2>
+
+                    <!-- Customer fields -->
+                    <div class="pos-customer-fields">
+                        <div class="form-group" style="position:relative;">
+                            <label>Customer Name</label>
+                            <input type="text" id="posCustName" placeholder="Name (optional)"
+                                   style="font-size:16px;" autocomplete="off"
+                                   oninput="posUpdateLoyaltyDisplay()"
+                                   onfocus="posShowCustSuggestions()"
+                                   onblur="setTimeout(()=>{const b=document.getElementById('posCustSuggestions');if(b)b.style.display='none';},150)">
+                            <div id="posCustSuggestions"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input type="tel" id="posCustPhone" placeholder="Phone (optional)"
+                                   style="font-size:16px;" autocomplete="off">
+                        </div>
+                    </div>
+
+                    <!-- Loyalty display -->
+                    <div id="posLoyaltyBadge" class="pos-loyalty-badge" style="display:none;">
+                        <div class="loyalty-left">
+                            <i class="fas fa-star" style="color:#f59e0b;font-size:18px;"></i>
+                            <div>
+                                <div>Loyalty Points</div>
+                                <div id="posPointsEarn" class="pts-earn" style="display:none;">+<span id="posPointsEarnVal">0</span> pts this sale</div>
+                            </div>
+                        </div>
+                        <div class="loyalty-pts" id="posCustPoints">0</div>
+                    </div>
+
+                    <!-- Cart items -->
+                    <div id="posCartItems">
+                        <div class="pos-empty-cart"><i class="fas fa-spa"></i>Add products to start</div>
+                    </div>
+
+                    <!-- Totals -->
+                    <div class="pos-totals">
+                        <div class="pos-totals-row">
+                            <span>Subtotal</span>
+                            <span id="posSubtotal">0.00</span>
+                        </div>
+
+                        <!-- Discount row -->
+                        <div class="pos-discount-row">
+                            <span style="font-size:14px;flex-shrink:0;">Discount:</span>
+                            <input type="number" id="posDiscountInput" placeholder="0" min="0" value="">
+                            <select id="posDiscountType">
+                                <option value="percent">%</option>
+                                <option value="amount">$</option>
+                            </select>
+                            <button onclick="posApplyDiscount()">Apply</button>
+                        </div>
+
+                        <div class="pos-totals-row" id="posDiscountRow" style="display:none; color:var(--danger-color);">
+                            <span>Discount</span>
+                            <span id="posDiscountAmt">-0.00</span>
+                        </div>
+
+                        <div class="pos-totals-row" id="posVatRow" style="display:none;">
+                            <span>VAT (<span id="posVatRateDisplay">0</span>%)</span>
+                            <span id="posVatAmt">0.00</span>
+                        </div>
+
+                        <div class="pos-totals-row grand">
+                            <span>TOTAL</span>
+                            <span id="posTotal">0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Action buttons -->
+                    <div class="pos-action-btns">
+                        <button class="btn-process" onclick="posProcessPayment()">
+                            <i class="fas fa-credit-card" style="margin-right:6px;"></i>Process Payment
+                        </button>
+                        <button class="btn-clear" onclick="posClearCart()" title="Clear cart">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Receipt Section -->
+            <div id="posReceiptSection" class="pos-receipt-wrapper" style="display:none;">
+                <div class="flex justify-center" style="display:flex;justify-content:center;">
+                    <div id="posReceiptContent" class="receipt-container">
+                        <!-- Receipt generated here -->
+                    </div>
+                </div>
+                <div class="pos-receipt-actions">
+                    <button class="btn btn-secondary" onclick="posPrintReceipt()">
+                        <i class="fas fa-print"></i> Print Receipt
+                    </button>
+                    <button class="btn btn-danger" id="posVoidBtn" onclick="posVoidCurrentReceipt()">
+                        <i class="fas fa-ban"></i> Void Receipt
+                    </button>
+                    <button class="btn btn-secondary" onclick="posHideReceipt()">
+                        <i class="fas fa-times"></i> Close
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- History View -->
+        <div id="historyView" class="view-content">
+            <div class="filters">
+                <select id="historyCustomer">
+                    <option value="">Select customer...</option>
+                </select>
+            </div>
+            <div id="historyList" class="history-container"></div>
+        </div>
+
+        <!-- Product Modal -->
+        <div id="productModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="productModalTitle">Add Product</h2>
+                    <button class="modal-close" onclick="closeModal('productModal')">&times;</button>
+                </div>
+                <form id="productForm">
+                    <input type="hidden" id="productId">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Product Name *</label>
+                            <input type="text" id="productName" placeholder="e.g. Vitamin C 1000mg" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Barcode</label>
+                            <input type="text" id="productBarcode" placeholder="e.g. 123456789">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Purchase Price</label>
+                            <input type="number" id="productPurchasePrice" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label>Sale Price</label>
+                            <input type="number" id="productSalePrice" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Quantity *</label>
+                        <input type="number" id="productQuantity" min="0" placeholder="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea id="productNotes" rows="2" placeholder="Any extra details..."></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('productModal')">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Product</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Debts View -->
+        <div id="debtsView" class="view-content">
+            <!-- Summary bar -->
+            <div class="debt-summary-bar">
+                <div class="debt-stat debt-stat--total">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    <div>
+                        <span class="debt-stat-label">Total Outstanding</span>
+                        <span class="debt-stat-value" id="debtTotalOutstanding">0.00</span>
+                    </div>
+                </div>
+                <div class="debt-stat debt-stat--partial">
+                    <i class="fas fa-clock"></i>
+                    <div>
+                        <span class="debt-stat-label">Partial</span>
+                        <span class="debt-stat-value" id="debtCountPartial">0</span>
+                    </div>
+                </div>
+                <div class="debt-stat debt-stat--overdue">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <div>
+                        <span class="debt-stat-label">Overdue</span>
+                        <span class="debt-stat-value" id="debtCountOverdue">0</span>
+                    </div>
+                </div>
+                <div class="debt-stat debt-stat--paid">
+                    <i class="fas fa-check-circle"></i>
+                    <div>
+                        <span class="debt-stat-label">Paid This Month</span>
+                        <span class="debt-stat-value" id="debtCountPaid">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter + New Debt button -->
+            <div class="filters debt-filters">
+                <input type="text" id="searchDebt" placeholder="Search customer or note...">
+                <select id="filterDebtStatus">
+                    <option value="">All Statuses</option>
+                    <option value="unpaid">Unpaid</option>
+                    <option value="partial">Partial</option>
+                    <option value="paid">Paid</option>
+                </select>
+                <button class="btn btn-danger" id="newDebtBtn">
+                    <i class="fas fa-plus"></i> New Debt
+                </button>
+            </div>
+
+            <div id="debtsList" class="debts-grid"></div>
+        </div>
+
+        <!-- Debt Modal -->
+        <div id="debtModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="debtModalTitle">New Debt</h2>
+                    <button class="modal-close" onclick="closeModal('debtModal')">&times;</button>
+                </div>
+                <form id="debtForm">
+                    <input type="hidden" id="debtId">
+                    <input type="hidden" id="debtCreatedAt">
+                    <div class="form-group">
+                        <label>Customer *</label>
+                        <select id="debtCustomer" required>
+                            <option value="">Select customer...</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Total Amount *</label>
+                            <input type="number" id="debtAmount" step="0.01" min="0" placeholder="0.00" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Amount Paid</label>
+                            <input type="number" id="debtAmountPaid" step="0.01" min="0" value="0" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="debtStatus">
+                            <option value="unpaid">Unpaid</option>
+                            <option value="partial">Partial</option>
+                            <option value="paid">Paid</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Service / Treatment</label>
+                        <input type="text" id="debtService" placeholder="e.g. Gel Manicure">
+                    </div>
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea id="debtNotes" rows="3" placeholder="Any extra details..."></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('debtModal')">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Debt</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Settings View -->
+        <div id="settingsView" class="view-content">
+            <div class="settings-container">
+
+                <!-- WhatsApp -->
+                <h2><i class="fab fa-whatsapp" style="color:#25d366"></i> WhatsApp Settings</h2>
+                <div class="form-group">
+                    <label>Your WhatsApp Number</label>
+                    <input type="tel" id="whatsappNumber" placeholder="60123456789">
+                    <small>Enter number with country code (e.g., 60123456789 for Malaysia)</small>
+                </div>
+                <div class="form-group">
+                    <label>Reminder Message Template</label>
+                    <textarea id="reminderMessage" rows="4"></textarea>
+                    <small>Use {name}, {date}, {time}, {service}, {room} as placeholders</small>
+                </div>
+                <button class="btn btn-primary" id="saveSettings">
+                    <i class="fas fa-save"></i> Save Settings
+                </button>
+
+                <!-- Services -->
+                <div class="settings-divider"></div>
+
+                <div class="services-section">
+                    <div class="services-section-header">
+                        <div>
+                            <h2>Services</h2>
+                            <p class="settings-hint">Manage your services — they appear as suggestions when booking appointments.</p>
+                        </div>
+                        <span class="services-total-badge" id="servicesTotalBadge">0 services</span>
+                    </div>
+
+                    <!-- Add input -->
+                    <div class="service-input-card">
+                        <div class="service-input-inner">
+                            <i class="fas fa-plus-circle service-input-icon"></i>
+                            <input type="text" id="newServiceInput"
+                                   placeholder="Type a service name and press Enter or click Add..."
+                                   maxlength="60"
+                                   autocomplete="off">
+                            <button class="btn btn-primary" id="addServiceBtn">
+                                <i class="fas fa-plus"></i> Add
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Services chips -->
+                    <div id="servicesList"></div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal for New/Edit Appointment -->
+    <div id="appointmentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="appointmentModalTitle">New Appointment</h2>
+                <button class="btn-close" data-modal="appointmentModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="appointmentForm">
+                <input type="hidden" id="appointmentId">
+                <div class="form-group">
+                    <label>Customer *</label>
+                    <div class="customer-select-group">
+                        <select id="appointmentCustomer" required></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Date *</label>
+                        <input type="date" id="appointmentDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Start Time *</label>
+                        <input type="time" id="appointmentTime" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Duration *</label>
+                        <select id="appointmentDuration" required>
+                            <option value="">-- Select duration --</option>
+                            <option value="5">5 minutes</option>
+                            <option value="10">10 minutes</option>
+                            <option value="15">15 minutes</option>
+                            <option value="20">20 minutes</option>
+                            <option value="25">25 minutes</option>
+                            <option value="30">30 minutes</option>
+                            <option value="45">45 minutes</option>
+                            <option value="60">1 hour</option>
+                            <option value="90">1 hour 30 min</option>
+                            <option value="120">2 hours</option>
+                            <option value="150">2 hours 30 min</option>
+                            <option value="180">3 hours</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>End Time</label>
+                        <input type="text" id="appointmentEndTime" readonly placeholder="Auto-calculated" style="background:#f3f4f6;color:#6b7280;cursor:not-allowed;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Service/Treatment *</label>
+                    <select id="appointmentServiceSelect" class="service-select-dropdown">
+                        <option value="">— Pick from saved services —</option>
+                    </select>
+                    <div class="service-or-divider"><span>or type a custom service</span></div>
+                    <input type="text" id="appointmentService"
+                           placeholder="Type a custom service..."
+                           autocomplete="off"
+                           required>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="appointmentStatus">
+                        <option value="scheduled">Scheduled</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="no-show">No Show</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="appointmentNotes" rows="3" placeholder="Additional notes..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-modal="appointmentModal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Appointment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for New/Edit Customer -->
+    <div id="customerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="customerModalTitle">New Customer</h2>
+                <button class="btn-close" data-modal="customerModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="customerForm">
+                <input type="hidden" id="customerId">
+                <div class="form-group">
+                    <label>Name *</label>
+                    <input type="text" id="customerName" placeholder="Customer name" required>
+                </div>
+                <div class="form-group">
+                    <label>WhatsApp Phone *</label>
+                    <input type="tel" id="customerPhone" placeholder="60123456789" required>
+                    <small>Include country code (e.g., 60123456789)</small>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="customerEmail" placeholder="customer@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="customerNotes" rows="3" placeholder="Customer preferences, allergies, etc..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-modal="customerModal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Customer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    
+    <!-- Main App Script -->
+    <script>
+// ==================== FIREBASE SETUP ====================
+const firebaseConfig = {
+    databaseURL: "https://sachakhalil-default-rtdb.firebaseio.com/"
+};
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+
+// ==================== APP STATE ====================
+const state = {
+    customers: [],
+    appointments: [],
+    services: [],
+    debts: [],
+    products: [],
+    sales:    [],
+    settings: {
+        whatsappNumber: '03711621',
+        reminderMessage: 'Hi {name}, this is a reminder for your {service} appointment on {date} at {time} in {room}. See you soon!'
+    },
+    currentView: 'dashboard',
+    currentMonth: new Date(),
+    selectedDate: null,
+    editingCustomer: null,
+    editingAppointment: null
+};
+
+// ==================== FIREBASE STATUS ====================
+const updateFirebaseStatus = (connected) => {
+    const indicator = document.getElementById('firebaseIndicator');
+    const status   = document.getElementById('firebaseStatus');
+    if (connected) {
+        indicator.classList.add('connected');
+        indicator.classList.remove('disconnected');
+        status.textContent = 'Firebase Connected';
+    } else {
+        indicator.classList.remove('connected');
+        indicator.classList.add('disconnected');
+        status.textContent = 'Firebase Disconnected';
+    }
+};
+database.ref('.info/connected').on('value', snap => updateFirebaseStatus(snap.val() === true));
+
+// ==================== FIREBASE DATA OPS ====================
+
+// ---- Sync UI helpers ----
+const setSyncState = (state_) => {
+    const btn      = document.getElementById('syncBtn');
+    const icon     = document.getElementById('syncIcon');
+    const mBtn     = document.getElementById('mobileSyncBtn');
+    const mIcon    = document.getElementById('mobileSyncIcon');
+
+    const clear = (el) => el && el.classList.remove('syncing','sync-ok','sync-err');
+
+    if (state_ === 'loading') {
+        [btn, mBtn].forEach(el => { if(el){ clear(el); el.classList.add('syncing'); } });
+        if (icon)  icon.className  = 'fas fa-sync-alt';
+        if (mIcon) mIcon.className = 'fas fa-sync-alt';
+    } else if (state_ === 'ok') {
+        [btn, mBtn].forEach(el => { if(el){ clear(el); el.classList.add('sync-ok'); } });
+        if (icon)  icon.className  = 'fas fa-check';
+        if (mIcon) mIcon.className = 'fas fa-check';
+        setTimeout(() => resetSyncState(), 2500);
+    } else if (state_ === 'error') {
+        [btn, mBtn].forEach(el => { if(el){ clear(el); el.classList.add('sync-err'); } });
+        if (icon)  icon.className  = 'fas fa-exclamation-triangle';
+        if (mIcon) mIcon.className = 'fas fa-exclamation-triangle';
+        setTimeout(() => resetSyncState(), 3000);
+    }
+};
+
+const resetSyncState = () => {
+    const btn  = document.getElementById('syncBtn');
+    const mBtn = document.getElementById('mobileSyncBtn');
+    const icon  = document.getElementById('syncIcon');
+    const mIcon = document.getElementById('mobileSyncIcon');
+    [btn, mBtn].forEach(el => { if(el){ el.classList.remove('syncing','sync-ok','sync-err'); } });
+    if (icon)  icon.className  = 'fas fa-sync-alt';
+    if (mIcon) mIcon.className = 'fas fa-sync-alt';
+};
+
+// ==================== DATA LAYER ====================
+// Architecture: real-time on('value') listeners for ALL 4 collections.
+// Each listener owns its slice of state and re-renders when Firebase
+// pushes any change — so ALL devices see updates instantly with zero
+// manual sync required.
+//
+// Key rules that prevent race conditions:
+//  1. Each listener does ONE atomic state replacement then renders.
+//  2. Listeners are attached ONCE at startup and never removed.
+//  3. CRUD functions only write to Firebase — they do NOT touch state
+//     directly. The listener fires and updates state automatically.
+//  4. forEach callbacks use block bodies {} so they never return a
+//     truthy value (Array.push returns length — Firebase forEach stops
+//     early if callback returns truthy).
+
+// Track how many collections have loaded at least once
+const _loaded = { customers: false, appointments: false, settings: false, services: false, debts: false, products: false, sales: false };
+let _initialRenderDone = false;
+
+const _tryInitialRender = () => {
+    if (_initialRenderDone) return;
+    if (_loaded.customers && _loaded.appointments && _loaded.settings && _loaded.services && _loaded.debts && _loaded.products && _loaded.sales) {
+        _initialRenderDone = true;
+        renderCurrentView();
+        renderServicesList();
+        setSyncState('ok');
+        setTimeout(() => resetSyncState(), 1500);
+    }
+};
+
+// ── _rebuildCustomers ──────────────────────────────────────────────
+// Called by BOTH customers and appointments listeners so the merge
+// always runs with the latest data from both collections.
+// Also writes any missing customers back to Firebase permanently.
+const _rebuildCustomers = (custSnap) => {
+    // 1. Load from customers/ node
+    state.customers = [];
+    if (custSnap) {
+        custSnap.forEach(c => { state.customers.push({ id: c.key, ...c.val() }); });
+    }
+
+    // 2. Merge customers found in appointments but missing from customers/
+    const knownIds = new Set(state.customers.map(c => c.id));
+    const toWrite  = [];
+    state.appointments.forEach(a => {
+        if (a.customerId && !knownIds.has(a.customerId)) {
+            const recovered = {
+                id:    a.customerId,
+                name:  a.customerName  || 'Unknown',
+                phone: a.customerPhone || '',
+                email: a.customerEmail || '',
+                notes: ''
+            };
+            state.customers.push(recovered);
+            knownIds.add(a.customerId);
+            toWrite.push(recovered);
+        }
+    });
+
+    // 3. Write recovered customers to Firebase so they're permanent
+    if (toWrite.length) {
+        toWrite.forEach(c => {
+            database.ref(`customers/${c.id}`).set(c)
+                .catch(e => console.warn('Customer write failed:', e.message));
+        });
+    }
+};
+
+// Keep the last customers snapshot so appointments listener can re-trigger merge
+let _lastCustSnap = null;
+
+// ── Customers ──────────────────────────────────────────────────────
+database.ref('customers').on('value',
+    snap => {
+        _lastCustSnap = snap;
+        _rebuildCustomers(snap);
+
+        _loaded.customers = true;
+        if (_initialRenderDone) renderCurrentView();
+        else _tryInitialRender();
+    },
+    err => console.error('customers listener error:', err.message)
+);
+
+// ── Appointments ───────────────────────────────────────────────────
+database.ref('appointments').on('value',
+    snap => {
+        state.appointments = [];
+        snap.forEach(a => { state.appointments.push({ id: a.key, ...a.val() }); });
+
+        // Re-run customer merge now that appointments are fresh
+        // (customers listener may have fired first when appointments was still empty)
+        _rebuildCustomers(_lastCustSnap);
+
+        _loaded.appointments = true;
+        if (_initialRenderDone) renderCurrentView();
+        else _tryInitialRender();
+    },
+    err => console.error('appointments listener error:', err.message)
+);
+
+// ── Settings ───────────────────────────────────────────────────────
+database.ref('settings').on('value',
+    snap => {
+        if (snap.exists()) {
+            state.settings = { ...state.settings, ...snap.val() };
+            const waEl  = document.getElementById('whatsappNumber');
+            const msgEl = document.getElementById('reminderMessage');
+            if (waEl)  waEl.value  = state.settings.whatsappNumber  || '';
+            if (msgEl) msgEl.value = state.settings.reminderMessage || '';
+        }
+        _loaded.settings = true;
+        _tryInitialRender();
+    },
+    err => console.error('settings listener error:', err.message)
+);
+
+// ── Services ───────────────────────────────────────────────────────
+database.ref('services').on('value',
+    snap => {
+        state.services = [];
+        // CRITICAL: block body {} prevents forEach returning truthy and stopping early
+        snap.forEach(s => { state.services.push({ id: s.key, name: s.val() }); });
+
+        _loaded.services = true;
+        if (_initialRenderDone) renderServicesList();
+        else _tryInitialRender();
+    },
+    err => console.error('services listener error:', err.message)
+);
+
+// ── Manual sync — just shows visual feedback, listeners do the work ─
+const loadDataFromFirebase = (isManual = false) => {
+    if (!isManual) return Promise.resolve();
+    setSyncState('loading');
+    // Re-read all 4 paths once to force an immediate refresh on all devices
+    return Promise.all([
+        database.ref('customers').once('value'),
+        database.ref('appointments').once('value'),
+        database.ref('settings').once('value'),
+        database.ref('services').once('value')
+    ]).then(([custSnap, aptSnap, setSnap, svcSnap]) => {
+        // Update state from fresh snapshots
+        state.appointments = [];
+        aptSnap.forEach(a => { state.appointments.push({ id: a.key, ...a.val() }); });
+
+        // Use shared _rebuildCustomers — handles merge + Firebase write for missing ones
+        _rebuildCustomers(custSnap);
+
+        if (setSnap.exists()) {
+            state.settings = { ...state.settings, ...setSnap.val() };
+            const waEl  = document.getElementById('whatsappNumber');
+            const msgEl = document.getElementById('reminderMessage');
+            if (waEl)  waEl.value  = state.settings.whatsappNumber  || '';
+            if (msgEl) msgEl.value = state.settings.reminderMessage || '';
+        }
+
+        state.services = [];
+        svcSnap.forEach(s => { state.services.push({ id: s.key, name: s.val() }); });
+
+        renderCurrentView();
+        renderServicesList();
+
+        setSyncState('ok');
+        const today = new Date().toISOString().split('T')[0];
+        const todayCount = state.appointments.filter(a => a.date === today).length;
+        showToast(
+            `✅ Synced!\n` +
+            `👥 ${state.customers.length} customers  ` +
+            `📅 ${state.appointments.length} appointments\n` +
+            `🗓️ ${todayCount} today  🛎️ ${state.services.length} services`
+        );
+    }).catch(err => {
+        setSyncState('error');
+        showToast('❌ Sync failed — check Firebase rules', 'error');
+        console.error('Manual sync error:', err.message);
+    });
+};
+
+// ==================== SERVICES FIREBASE ====================
+
+const addServiceToFirebase = async (name) => {
+    const ref = database.ref('services').push();
+    await ref.set(name);
+    return { id: ref.key, name };
+};
+
+const removeServiceFromFirebase = async (id) => {
+    await database.ref(`services/${id}`).remove();
+};
+
+// No real-time listener for services — loadDataFromFirebase() is the single
+// source of truth, called on init and after every add/delete.
+
+const saveCustomerToFirebase = async (customer) => {
+    if (customer.id) {
+        await database.ref(`customers/${customer.id}`).update(customer);
+    } else {
+        const ref = database.ref('customers').push();
+        customer.id = ref.key;
+        await ref.set(customer);
+    }
+    return customer;
+};
+
+const deleteCustomerFromFirebase = async (customerId) => {
+    await database.ref(`customers/${customerId}`).remove();
+    const deletes = state.appointments
+        .filter(a => a.customerId === customerId)
+        .map(a => database.ref(`appointments/${a.id}`).remove());
+    await Promise.all(deletes);
+};
+
+const saveAppointmentToFirebase = async (appointment) => {
+    if (appointment.id) {
+        await database.ref(`appointments/${appointment.id}`).update(appointment);
+    } else {
+        const ref = database.ref('appointments').push();
+        appointment.id = ref.key;
+        await ref.set(appointment);
+    }
+    return appointment;
+};
+
+const deleteAppointmentFromFirebase = async (id) => {
+    await database.ref(`appointments/${id}`).remove();
+};
+
+const saveSettingsToFirebase = async (settings) => {
+    await database.ref('settings').set(settings);
+};
+
+// NOTE: No real-time on('value') listeners for customers/appointments.
+// loadDataFromFirebase() is the single source of truth — called on init
+// and after every CRUD operation. This prevents race conditions where
+// both .once() and .on('value') fire simultaneously and overwrite each other.
+
+// ==================== UTILITIES ====================
+
+const formatDate = (dateStr) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+};
+const isToday  = (d) => d === new Date().toISOString().split('T')[0];
+const isFuture = (d) => d >  new Date().toISOString().split('T')[0];
+
+const showToast = (msg, type = 'success', duration = 3500) => {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    // Longer messages get more time to read
+    const ms = msg.length > 60 ? 5000 : duration;
+    setTimeout(() => t.classList.remove('show'), ms);
+};
+
+const openModal = (id) => {
+    document.getElementById(id).classList.add('active');
+    // Prevent background scroll on iOS when modal is open
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+};
+const closeModal = (id) => {
+    document.getElementById(id).classList.remove('active');
+    // Restore scrolling
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+};
+
+// ==================== DURATION & TIME HELPERS ====================
+
+const timeToMins = (t) => {
+    if (!t) return 0;
+    const [h, m] = t.trim().split(':').map(Number);
+    return h * 60 + m;
+};
+
+const addMins = (t, mins) => {
+    const total = timeToMins(t) + mins;
+    const h = Math.floor(total / 60) % 24;
+    const m = total % 60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+};
+
+const fmtDuration = (mins) => {
+    if (!mins) return '';
+    const m = parseInt(mins);
+    const h = Math.floor(m / 60);
+    const r = m % 60;
+    if (h && r)  return `${h}h ${r}min`;
+    if (h)       return `${h}h`;
+    return `${r}min`;
+};
+
+const fmt12 = (t) => {
+    if (!t) return '';
+    const [h, m] = t.split(':').map(Number);
+    const suffix = h >= 12 ? 'pm' : 'am';
+    const hh = h % 12 || 12;
+    return `${hh}:${String(m).padStart(2,'0')}${suffix}`;
+};
+
+// ==================== NAVIGATION ====================
+
+const switchView = (viewName) => {
+    document.querySelectorAll('.nav-links a').forEach(l => l.classList.remove('active'));
+    const desktopLink = document.querySelector(`.nav-links a[data-view="${viewName}"]`);
+    if (desktopLink) desktopLink.classList.add('active');
+
+    document.querySelectorAll('.mob-nav-item').forEach(l => l.classList.remove('active'));
+    const mobileLink = document.querySelector(`.mob-nav-item[data-view="${viewName}"]`);
+    if (mobileLink) mobileLink.classList.add('active');
+
+    document.querySelectorAll('.view-content').forEach(v => v.classList.remove('active'));
+    document.getElementById(`${viewName}View`).classList.add('active');
+
+    const titles = {
+        dashboard: 'Dashboard', calendar: 'Calendar',
+        appointments: 'Appointments', customers: 'Customers',
+        history: 'History', debts: 'Debts', inventory: 'Inventory', pos: 'POS', settings: 'Settings'
+    };
+    document.getElementById('pageTitle').textContent = titles[viewName] || viewName;
+    state.currentView = viewName;
+
+    // Update mobile FAB icon to match context
+    const fabIcon = document.querySelector('#mobileNewApptBtn i');
+    if (fabIcon) {
+        if (viewName === 'customers') fabIcon.className = 'fas fa-user-plus';
+        else if (viewName === 'inventory') fabIcon.className = 'fas fa-boxes';
+        else if (viewName === 'pos') fabIcon.className = 'fas fa-cash-register';
+        else fabIcon.className = 'fas fa-plus';
+    }
+
+    // State is always current via real-time listeners — just render
+    renderCurrentView();
+};
+
+document.querySelectorAll('.nav-links a').forEach(link => {
+    link.addEventListener('click', e => {
+        e.preventDefault();
+        switchView(link.getAttribute('data-view'));
+    });
+});
+
+document.querySelectorAll('.mob-nav-item').forEach(link => {
+    link.addEventListener('click', e => {
+        e.preventDefault();
+        switchView(link.getAttribute('data-view'));
+    });
+});
+
+// ==================== RENDER DISPATCHER ====================
+
+const renderCurrentView = () => {
+    switch (state.currentView) {
+        case 'dashboard':    renderDashboard();    break;
+        case 'calendar':     renderCalendar();     break;
+        case 'appointments': renderAppointments(); break;
+        case 'customers':    renderCustomers();    break;
+        case 'history':      renderHistory();      break;
+        case 'debts':        renderDebts();        break;
+        case 'inventory':    renderInventory();    break;
+        case 'pos':          renderPOS();           break;
+    }
+};
+
+// ==================== APPOINTMENT CARD ====================
+
+const renderAppointmentCard = (apt) => {
+    const customer     = state.customers.find(c => c.id === apt.customerId);
+    const customerName = customer ? customer.name : 'Unknown Customer';
+    const endTime      = apt.duration ? addMins(apt.time, apt.duration) : apt.endTime || '';
+    const timeRange    = endTime ? `${fmt12(apt.time)} → ${fmt12(endTime)}` : fmt12(apt.time);
+    const durLabel     = apt.duration ? `<span class="dur-badge"><i class="fas fa-hourglass-half"></i>${fmtDuration(apt.duration)}</span>` : '';
+    return `
+        <div class="appointment-card">
+            <div class="appointment-info">
+                <h4>${customerName}</h4>
+                <p><i class="fas fa-briefcase"></i> ${apt.service} ${durLabel}</p>
+                <p><i class="fas fa-clock"></i> ${timeRange} &bull; ${formatDate(apt.date)}</p>
+                <span class="status-badge status-${apt.status}">${apt.status}</span>
+            </div>
+            <div class="appointment-actions">
+                <button class="btn btn-small btn-whatsapp" onclick="sendWhatsAppReminder('${apt.id}')">
+                    <i class="fab fa-whatsapp"></i>
+                </button>
+                <button class="btn btn-small btn-primary" onclick="editAppointment('${apt.id}')">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-small btn-danger" onclick="deleteAppointment('${apt.id}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>`;
+};
+
+// ==================== DASHBOARD ====================
+
+const renderDashboard = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const todayApts     = state.appointments.filter(a => a.date === today);
+    const upcomingApts  = state.appointments.filter(a => a.date > today && a.status === 'scheduled')
+                                            .sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
+    const completedApts = state.appointments.filter(a => a.status === 'completed');
+
+    document.getElementById('todayCount').textContent     = todayApts.length;
+    document.getElementById('upcomingCount').textContent  = upcomingApts.length;
+    document.getElementById('customersCount').textContent = state.customers.length;
+    document.getElementById('completedCount').textContent = completedApts.length;
+
+    const todayList = document.getElementById('todayList');
+    todayList.innerHTML = todayApts.length
+        ? todayApts.sort((a,b)=>a.time.localeCompare(b.time)).map(renderAppointmentCard).join('')
+        : '<div class="empty-state"><i class="fas fa-calendar"></i><p>No appointments today</p></div>';
+
+    const upcomingList = document.getElementById('upcomingList');
+    upcomingList.innerHTML = upcomingApts.length
+        ? upcomingApts.slice(0, 6).map(renderAppointmentCard).join('')
+        : '<div class="empty-state"><i class="fas fa-calendar-check"></i><p>No upcoming appointments</p></div>';
+};
+
+// ==================== CALENDAR ====================
+
+const renderCalendar = () => {
+    const year  = state.currentMonth.getFullYear();
+    const month = state.currentMonth.getMonth();
+
+    document.getElementById('currentMonth').textContent =
+        state.currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    const firstDay      = new Date(year, month, 1).getDay();
+    const daysInMonth   = new Date(year, month + 1, 0).getDate();
+    const prevMonthDays = new Date(year, month, 0).getDate();
+
+    let html = '';
+
+    for (let i = firstDay - 1; i >= 0; i--)
+        html += `<div class="calendar-day other-month"><span class="day-number">${prevMonthDays - i}</span></div>`;
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const dayApts = state.appointments.filter(a => a.date === dateStr);
+        const classes = ['calendar-day'];
+        if (isToday(dateStr))               classes.push('today');
+        if (state.selectedDate === dateStr) classes.push('selected');
+
+        const dots = dayApts.length
+            ? `<div class="appointment-dots">${'<span class="appointment-dot"></span>'.repeat(Math.min(dayApts.length, 3))}</div>`
+            : '';
+
+        html += `<div class="${classes.join(' ')}" onclick="selectDate('${dateStr}')">
+                    <span class="day-number">${day}</span>${dots}</div>`;
+    }
+
+    const totalCells     = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+    const remainingCells = totalCells - (firstDay + daysInMonth);
+    for (let d = 1; d <= remainingCells; d++)
+        html += `<div class="calendar-day other-month"><span class="day-number">${d}</span></div>`;
+
+    document.getElementById('calendarDays').innerHTML = html;
+    if (state.selectedDate) showDayDetails(state.selectedDate);
+};
+
+window.selectDate = (dateStr) => {
+    state.selectedDate = dateStr;
+    renderCalendar();
+    openNewAppointmentModal(dateStr);
+};
+
+const showDayDetails = (dateStr) => {
+    const panel = document.getElementById('dayDetails');
+    document.getElementById('selectedDate').textContent = formatDate(dateStr);
+    const dayApts = state.appointments
+        .filter(a => a.date === dateStr)
+        .sort((a,b) => a.time.localeCompare(b.time));
+    document.getElementById('dayAppointments').innerHTML = dayApts.length
+        ? dayApts.map(renderAppointmentCard).join('')
+        : '<div class="empty-state"><i class="fas fa-calendar"></i><p>No appointments on this day</p></div>';
+    panel.classList.remove('hidden');
+};
+
+// ==================== DEBTS ====================
+
+// ── Firebase CRUD ──
+const saveDebtToFirebase = async (debt) => {
+    const ref = debt.id
+        ? database.ref(`debts/${debt.id}`)
+        : database.ref('debts').push();
+    const { id, ...data } = debt;
+    await ref.set({ ...data, updatedAt: Date.now() });
+};
+
+const deleteDebtFromFirebase = async (id) => {
+    await database.ref(`debts/${id}`).remove();
+};
+
+// ── Real-time listener ──
+database.ref('debts').on('value',
+    snap => {
+        state.debts = [];
+        snap.forEach(d => { state.debts.push({ id: d.key, ...d.val() }); });
+        _loaded.debts = true;
+        if (_initialRenderDone) {
+            if (state.currentView === 'debts') renderDebts();
+            renderDashboard(); // keep dashboard totals fresh
+        } else _tryInitialRender();
+    },
+    err => console.error('debts listener error:', err.message)
+);
+
+// ── Render ──
+const renderDebts = () => {
+    const search  = (document.getElementById('searchDebt')?.value || '').toLowerCase();
+    const statusF = document.getElementById('filterDebtStatus')?.value || '';
+
+    let list = state.debts.slice();
+    if (search)  list = list.filter(d => {
+        const c = state.customers.find(x => x.id === d.customerId);
+        return (c ? c.name.toLowerCase() : '').includes(search) ||
+               (d.notes || '').toLowerCase().includes(search);
+    });
+    if (statusF) list = list.filter(d => d.status === statusF);
+    list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    // Summary bar
+    const allDebts = state.debts;
+    const now = new Date();
+    const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const outstanding = allDebts
+        .filter(d => d.status !== 'paid')
+        .reduce((s, d) => s + (parseFloat(d.amount) - parseFloat(d.amountPaid || 0)), 0);
+    const partial  = allDebts.filter(d => d.status === 'partial').length;
+    const overdue  = allDebts.filter(d => d.status !== 'paid' && d.dueDate && d.dueDate < now.toISOString().split('T')[0]).length;
+    const paidNow  = allDebts.filter(d => d.status === 'paid' && (d.updatedAt || 0) > new Date(thisMonth+'-01').getTime()).length;
+
+    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    setEl('debtTotalOutstanding', outstanding.toFixed(2));
+    setEl('debtCountPartial',     partial);
+    setEl('debtCountOverdue',     overdue);
+    setEl('debtCountPaid',        paidNow);
+
+    const container = document.getElementById('debtsList');
+    if (!container) return;
+
+    if (!list.length) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-file-invoice-dollar"></i><h3>No debts found</h3><p>Track outstanding balances here.</p></div>';
+        return;
+    }
+
+    container.innerHTML = list.map(d => {
+        const c      = state.customers.find(x => x.id === d.customerId);
+        const cName  = c ? c.name : (d.customerName || 'Unknown');
+        const amt    = parseFloat(d.amount || 0);
+        const paid   = parseFloat(d.amountPaid || 0);
+        const remain = amt - paid;
+        const pct    = amt > 0 ? Math.min(100, Math.round((paid / amt) * 100)) : 0;
+        const isOverdue = d.status !== 'paid' && d.dueDate && d.dueDate < new Date().toISOString().split('T')[0];
+        const statusClass = d.status === 'paid' ? 'paid' : d.status === 'partial' ? 'partial' : isOverdue ? 'overdue' : 'unpaid';
+        const statusLabel = d.status === 'paid' ? 'Paid' : d.status === 'partial' ? 'Partial' : isOverdue ? 'Overdue' : 'Unpaid';
+        return `
+        <div class="debt-card debt-card--${statusClass}">
+            <div class="debt-card-header">
+                <div class="debt-card-customer">
+                    <i class="fas fa-user-circle"></i>
+                    <strong>${cName}</strong>
+                </div>
+                <span class="debt-status-badge debt-status--${statusClass}">${statusLabel}</span>
+            </div>
+            <div class="debt-card-body">
+                <div class="debt-amounts">
+                    <div class="debt-amount-item">
+                        <span class="debt-amount-label">Total</span>
+                        <span class="debt-amount-value">${amt.toFixed(2)}</span>
+                    </div>
+                    <div class="debt-amount-item">
+                        <span class="debt-amount-label">Paid</span>
+                        <span class="debt-amount-value debt-paid">${paid.toFixed(2)}</span>
+                    </div>
+                    <div class="debt-amount-item">
+                        <span class="debt-amount-label">Remaining</span>
+                        <span class="debt-amount-value debt-remain ${remain > 0 ? 'has-remain' : ''}">${remain.toFixed(2)}</span>
+                    </div>
+                </div>
+                ${amt > 0 ? `
+                <div class="debt-progress-wrap">
+                    <div class="debt-progress-bar"><div class="debt-progress-fill" style="width:${pct}%"></div></div>
+                    <span class="debt-progress-pct">${pct}%</span>
+                </div>` : ''}
+                ${d.service ? `<p class="debt-meta"><i class="fas fa-briefcase"></i> ${d.service}</p>` : ''}
+                ${d.dueDate ? `<p class="debt-meta ${isOverdue ? 'debt-overdue-text' : ''}"><i class="fas fa-calendar-alt"></i> Due: ${formatDate(d.dueDate)}</p>` : ''}
+                ${d.notes   ? `<p class="debt-meta debt-notes"><i class="fas fa-sticky-note"></i> ${d.notes}</p>` : ''}
+            </div>
+            <div class="debt-card-actions">
+                ${d.status !== 'paid' ? `<button class="btn btn-small btn-success" onclick="markDebtPaid('${d.id}')" title="Mark Paid"><i class="fas fa-check"></i> Mark Paid</button>` : ''}
+                <button class="btn btn-small btn-primary" onclick="editDebt('${d.id}')" title="Edit"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-small btn-danger"  onclick="deleteDebt('${d.id}')" title="Delete"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>`;
+    }).join('');
+};
+
+window.markDebtPaid = async (id) => {
+    const d = state.debts.find(x => x.id === id);
+    if (!d) return;
+    try {
+        await saveDebtToFirebase({ ...d, amountPaid: d.amount, status: 'paid' });
+        showToast('Marked as paid ✅');
+    } catch { showToast('Error updating debt', 'error'); }
+};
+
+window.editDebt = (id) => {
+    const d = state.debts.find(x => x.id === id);
+    if (!d) return;
+    openDebtModal(d);
+};
+
+window.deleteDebt = async (id) => {
+    if (!confirm('Delete this debt record?')) return;
+    try {
+        await deleteDebtFromFirebase(id);
+        showToast('Debt deleted');
+    } catch { showToast('Error deleting debt', 'error'); }
+};
+
+const openDebtModal = (debt = null) => {
+    const form = document.getElementById('debtForm');
+    form.reset();
+    document.getElementById('debtModalTitle').textContent = debt ? 'Edit Debt' : 'New Debt';
+    document.getElementById('debtId').value          = debt ? debt.id   : '';
+    document.getElementById('debtAmount').value      = debt ? debt.amount      : '';
+    document.getElementById('debtAmountPaid').value  = debt ? (debt.amountPaid || 0) : 0;
+    document.getElementById('debtStatus').value      = debt ? debt.status      : 'unpaid';
+    document.getElementById('debtService').value     = debt ? (debt.service || '') : '';
+        document.getElementById('debtNotes').value       = debt ? (debt.notes || '')   : '';
+    document.getElementById('debtCreatedAt').value   = debt ? (debt.createdAt || Date.now()) : Date.now();
+
+    // Populate customer dropdown
+    const sel = document.getElementById('debtCustomer');
+    sel.innerHTML = '<option value="">Select customer...</option>';
+    state.customers.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.id; o.textContent = c.name;
+        if (debt && c.id === debt.customerId) o.selected = true;
+        sel.appendChild(o);
+    });
+
+    // Auto-update status based on amounts
+    const syncStatus = () => {
+        const total = parseFloat(document.getElementById('debtAmount').value) || 0;
+        const pd    = parseFloat(document.getElementById('debtAmountPaid').value) || 0;
+        const st    = document.getElementById('debtStatus');
+        if (total > 0 && pd >= total)      st.value = 'paid';
+        else if (pd > 0 && pd < total)     st.value = 'partial';
+        else if (pd === 0)                 st.value = 'unpaid';
+    };
+    document.getElementById('debtAmount').oninput     = syncStatus;
+    document.getElementById('debtAmountPaid').oninput = syncStatus;
+
+    openModal('debtModal');
+};
+
+document.getElementById('debtForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const customerId = document.getElementById('debtCustomer').value;
+    if (!customerId) { showToast('Please select a customer!', 'error'); return; }
+    const amount     = parseFloat(document.getElementById('debtAmount').value);
+    if (!amount || amount <= 0) { showToast('Please enter a valid amount!', 'error'); return; }
+    const amountPaid = parseFloat(document.getElementById('debtAmountPaid').value) || 0;
+    const customer   = state.customers.find(c => c.id === customerId);
+    const debt = {
+        id:           document.getElementById('debtId').value,
+        customerId,
+        customerName: customer ? customer.name : '',
+        amount,
+        amountPaid,
+        status:       document.getElementById('debtStatus').value,
+        service:      document.getElementById('debtService').value.trim(),
+        notes:        document.getElementById('debtNotes').value.trim(),
+        createdAt:    parseInt(document.getElementById('debtCreatedAt').value) || Date.now()
+    };
+    try {
+        await saveDebtToFirebase(debt);
+        showToast(debt.id ? 'Debt updated ✅' : 'Debt added ✅');
+        closeModal('debtModal');
+    } catch { showToast('Error saving debt', 'error'); }
+});
+
+document.getElementById('newDebtBtn').addEventListener('click',  () => openDebtModal());
+document.getElementById('searchDebt').addEventListener('input',  renderDebts);
+document.getElementById('filterDebtStatus').addEventListener('change', renderDebts);
+
+// ==================== INVENTORY ====================
+
+const INV_LOW_STOCK = 5; // threshold
+
+// \u2500\u2500 Firebase CRUD \u2500\u2500
+const saveProductToFirebase = async (product) => {
+    if (product.id) {
+        const { id, ...data } = product;
+        await database.ref(`products/${id}`).update({ ...data, updatedAt: Date.now() });
+    } else {
+        const ref = database.ref('products').push();
+        product.id = ref.key;
+        await ref.set({ ...product, createdAt: Date.now(), updatedAt: Date.now() });
+    }
+    return product;
+};
+
+const deleteProductFromFirebase = async (id) => {
+    await database.ref(`products/${id}`).remove();
+};
+
+// \u2500\u2500 Real-time listener \u2500\u2500
+database.ref('products').on('value',
+    snap => {
+        state.products = [];
+        snap.forEach(p => { state.products.push({ id: p.key, ...p.val() }); });
+        _loaded.products = true;
+        if (_initialRenderDone) {
+            if (state.currentView === 'inventory') renderInventory();
+            else if (state.currentView === 'pos') { posLoadProductList(); posRenderStats(); }
+        } else _tryInitialRender();
+    },
+    err => console.error('products listener error:', err.message)
+);
+
+// ── Sales (POS) ─────────────────────────────────────────────────────────
+database.ref('sales').on('value',
+    snap => {
+        state.sales = [];
+        snap.forEach(s => { state.sales.push({ id: s.key, firebaseKey: s.key, ...s.val() }); });
+        _loaded.sales = true;
+        if (_initialRenderDone) {
+            if (state.currentView === 'pos') posRenderStats();
+        } else _tryInitialRender();
+    },
+    err => console.error('sales listener error:', err.message)
+);
+
+// \u2500\u2500 Render \u2500\u2500
+const renderInventory = () => {
+    const search = (document.getElementById('invSearch')?.value || '').toLowerCase().trim();
+
+    let list = state.products.slice();
+    if (search) list = list.filter(p =>
+        (p.name || '').toLowerCase().includes(search) ||
+        (p.barcode || '').toLowerCase().includes(search)
+    );
+    list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+    // Stats
+    const all = state.products;
+    const totalProducts  = all.length;
+    const lowStock       = all.filter(p => (p.quantity || 0) <= INV_LOW_STOCK).length;
+    const retailValue    = all.reduce((s, p) => s + ((p.quantity || 0) * (p.salePrice || 0)), 0);
+    const costValue      = all.reduce((s, p) => s + ((p.quantity || 0) * (p.purchasePrice || 0)), 0);
+    const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    setEl('invTotalProducts', totalProducts);
+    setEl('invLowStock',      lowStock);
+    setEl('invRetailValue',   retailValue.toFixed(2));
+    setEl('invCostValue',     costValue.toFixed(2));
+
+    // Search info
+    const infoEl = document.getElementById('invSearchInfo');
+    if (infoEl) {
+        if (search) {
+            infoEl.textContent = list.length
+                ? `\u2705 Found ${list.length} product(s) matching "${search}"`
+                : `\u274c No products found matching "${search}"`;
+        } else {
+            infoEl.textContent = `Showing all ${list.length} products`;
+        }
+    }
+
+    // Table
+    const tbody = document.getElementById('invTableBody');
+    if (!tbody) return;
+    if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-secondary)"><i class="fas fa-boxes" style="font-size:28px;display:block;margin-bottom:10px;opacity:.3"></i>No products found</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = list.map(p => {
+        const qty    = p.quantity || 0;
+        const isLow  = qty <= INV_LOW_STOCK;
+        const badge  = isLow
+            ? `<span class="inv-badge-low"><i class="fas fa-exclamation-triangle"></i> Low</span>`
+            : `<span class="inv-badge-ok"><i class="fas fa-check"></i> OK</span>`;
+        const srcBadge = p.source === 'Import'
+            ? `<span class="inv-badge-import"><i class="fas fa-file-import"></i> Import</span>`
+            : '';
+        return `<tr>
+            <td><strong>${p.name || ''}</strong>${srcBadge ? ' ' + srcBadge : ''}</td>
+            <td style="color:var(--text-secondary);font-size:13px">${p.barcode || '—'}</td>
+            <td>${p.purchasePrice != null ? parseFloat(p.purchasePrice).toFixed(2) : '—'}</td>
+            <td><strong>${p.salePrice != null ? parseFloat(p.salePrice).toFixed(2) : '—'}</strong></td>
+            <td class="${isLow ? 'inv-qty-low' : ''}">${qty}</td>
+            <td>${badge}</td>
+            <td>
+                <button class="btn btn-small btn-primary" onclick="openProductModal('${p.id}')" title="Edit"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-small btn-danger" onclick="deleteProduct('${p.id}')" title="Delete" style="margin-left:4px"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>`;
+    }).join('');
+};
+
+// \u2500\u2500 Open modal \u2500\u2500
+const openProductModal = (id = null) => {
+    const form = document.getElementById('productForm');
+    form.reset();
+    const p = id ? state.products.find(x => x.id === id) : null;
+    document.getElementById('productModalTitle').textContent = p ? 'Edit Product' : 'Add Product';
+    document.getElementById('productId').value            = p ? p.id            : '';
+    document.getElementById('productName').value          = p ? (p.name || '')          : '';
+    document.getElementById('productBarcode').value       = p ? (p.barcode || '')       : '';
+    document.getElementById('productPurchasePrice').value = p ? (p.purchasePrice ?? '') : '';
+    document.getElementById('productSalePrice').value     = p ? (p.salePrice ?? '')     : '';
+    document.getElementById('productQuantity').value      = p ? (p.quantity ?? '')      : '';
+    document.getElementById('productNotes').value         = p ? (p.notes || '')         : '';
+    openModal('productModal');
+};
+
+window.deleteProduct = async (id) => {
+    if (!confirm('Delete this product?')) return;
+    try {
+        await deleteProductFromFirebase(id);
+        showToast('Product deleted');
+    } catch { showToast('Error deleting product', 'error'); }
+};
+
+document.getElementById('productForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const id   = document.getElementById('productId').value;
+    const name = document.getElementById('productName').value.trim();
+    if (!name) { showToast('Product name is required!', 'error'); return; }
+    const qty  = parseInt(document.getElementById('productQuantity').value);
+    if (isNaN(qty) || qty < 0) { showToast('Enter a valid quantity!', 'error'); return; }
+
+    const product = {
+        id,
+        name,
+        barcode:       document.getElementById('productBarcode').value.trim(),
+        purchasePrice: parseFloat(document.getElementById('productPurchasePrice').value) || 0,
+        salePrice:     parseFloat(document.getElementById('productSalePrice').value) || 0,
+        quantity:      qty,
+        notes:         document.getElementById('productNotes').value.trim(),
+        source:        id ? (state.products.find(p => p.id === id)?.source || 'Manual') : 'Manual'
+    };
+    try {
+        await saveProductToFirebase(product);
+        showToast(id ? 'Product updated \u2705' : 'Product added \u2705');
+        closeModal('productModal');
+    } catch { showToast('Error saving product', 'error'); }
+});
+
+document.getElementById('newProductBtn').addEventListener('click', () => openProductModal());
+
+// \u2500\u2500 Mobile FAB on inventory tab \u2500\u2500
+// (already handled in FAB context-aware logic above)
+
+// \u2500\u2500 Export to Excel \u2500\u2500
+const invExportExcel = () => {
+    if (!state.products.length) { showToast('No products to export!', 'error'); return; }
+    const data = state.products.map(p => ({
+        'Product Name':    p.name || '',
+        'Barcode':         p.barcode || '',
+        'Purchase Price':  p.purchasePrice || 0,
+        'Sale Price':      p.salePrice || 0,
+        'Quantity':        p.quantity || 0,
+        'Notes':           p.notes || ''
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Inventory');
+    XLSX.writeFile(wb, `inventory_${new Date().toISOString().split('T')[0]}.xlsx`);
+    showToast('Exported to Excel \u2705');
+};
+
+// \u2500\u2500 Import from Excel \u2500\u2500
+const invImportExcel = async (input) => {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const wb   = XLSX.read(e.target.result, { type: 'array' });
+            const ws   = wb.Sheets[wb.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(ws);
+            if (!rows.length) { showToast('No data found in file!', 'error'); return; }
+
+            let added = 0;
+            for (const row of rows) {
+                const name = (row['Product Name'] || row['Name'] || row['name'] || '').toString().trim();
+                if (!name) continue;
+                const product = {
+                    id: '',
+                    name,
+                    barcode:       (row['Barcode'] || row['barcode'] || '').toString().trim(),
+                    purchasePrice: parseFloat(row['Purchase Price'] || row['purchasePrice'] || 0) || 0,
+                    salePrice:     parseFloat(row['Sale Price'] || row['salePrice'] || 0) || 0,
+                    quantity:      parseInt(row['Quantity'] || row['quantity'] || 0) || 0,
+                    notes:         (row['Notes'] || row['notes'] || '').toString().trim(),
+                    source: 'Import'
+                };
+                await saveProductToFirebase(product);
+                added++;
+            }
+            showToast(`Imported ${added} products \u2705`);
+        } catch (err) {
+            showToast('Import failed: ' + err.message, 'error');
+        }
+        input.value = '';
+    };
+    reader.readAsArrayBuffer(file);
+};
+
+// ==================== APPOINTMENTS TABLE ====================
+
+const renderAppointments = () => {
+    const search       = (document.getElementById('searchAppointment')?.value || '').toLowerCase();
+    const filterStatus = document.getElementById('filterStatus')?.value || '';
+    const filterDate   = document.getElementById('filterDate')?.value   || '';
+
+    let list = state.appointments;
+    if (search)       list = list.filter(a => {
+        const c = state.customers.find(x => x.id === a.customerId);
+        return (c ? c.name.toLowerCase() : '').includes(search) || a.service.toLowerCase().includes(search);
+    });
+    if (filterStatus) list = list.filter(a => a.status === filterStatus);
+    if (filterDate)   list = list.filter(a => a.date === filterDate);
+
+    list = list.sort((a,b) => (b.date+b.time).localeCompare(a.date+a.time));
+
+    const container = document.getElementById('appointmentsList');
+    if (!list.length) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar-times"></i><h3>No appointments found</h3></div>';
+        return;
+    }
+
+    container.innerHTML = `
+      <table class="appt-table">
+        <thead>
+          <tr>
+            <th>Customer</th>
+            <th>Service</th>
+            <th>Date</th>
+            <th>Start</th>
+            <th>End</th>
+            <th>Duration</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${list.map(apt => {
+              const c    = state.customers.find(x => x.id === apt.customerId);
+              const name = c ? c.name : 'Unknown';
+              const endT = apt.duration ? addMins(apt.time, apt.duration) : (apt.endTime || '');
+              return `<tr>
+                <td data-label="Customer"><strong>${name}</strong></td>
+                <td data-label="Service">${apt.service}</td>
+                <td data-label="Date">${formatDate(apt.date)}</td>
+                <td data-label="Start"><i class="fas fa-clock" style="color:var(--primary-color);margin-right:4px"></i>${fmt12(apt.time)}</td>
+                <td data-label="End">${endT ? `<i class="fas fa-flag-checkered" style="color:#10b981;margin-right:4px"></i>${fmt12(endT)}` : '—'}</td>
+                <td data-label="Duration">${apt.duration ? `<span class="dur-badge"><i class="fas fa-hourglass-half"></i>${fmtDuration(apt.duration)}</span>` : '—'}</td>
+                <td data-label="Status"><span class="status-badge status-${apt.status}">${apt.status}</span></td>
+                <td data-label="Actions">
+                  <div class="actions">
+                    <button class="btn btn-small btn-whatsapp" onclick="sendWhatsAppReminder('${apt.id}')" title="WhatsApp"><i class="fab fa-whatsapp"></i></button>
+                    <button class="btn btn-small btn-primary"  onclick="editAppointment('${apt.id}')"      title="Edit"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-small btn-danger"   onclick="deleteAppointment('${apt.id}')"   title="Delete"><i class="fas fa-trash"></i></button>
+                  </div>
+                </td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+};
+
+// ==================== CUSTOMERS ====================
+
+const renderCustomers = () => {
+    const search = (document.getElementById('searchCustomer')?.value || '').toLowerCase();
+    let list = state.customers;
+    if (search) list = list.filter(c =>
+        c.name.toLowerCase().includes(search) ||
+        c.phone.includes(search) ||
+        (c.email && c.email.toLowerCase().includes(search))
+    );
+
+    const container = document.getElementById('customersList');
+    if (!list.length) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><h3>No customers found</h3><p>Add your first customer to get started</p></div>';
+        return;
+    }
+
+    container.innerHTML = list.map(customer => {
+        const apts      = state.appointments.filter(a => a.customerId === customer.id);
+        const completed = apts.filter(a => a.status === 'completed').length;
+        const upcoming  = apts.filter(a => a.status === 'scheduled' && isFuture(a.date)).length;
+        return `
+        <div class="customer-card">
+            <h3>${customer.name}</h3>
+            <p><i class="fas fa-phone"></i> ${customer.phone}</p>
+            ${customer.email ? `<p><i class="fas fa-envelope"></i> ${customer.email}</p>` : ''}
+            <div class="customer-stats">
+                <div class="customer-stat"><div class="number">${apts.length}</div><div class="label">Total</div></div>
+                <div class="customer-stat"><div class="number">${completed}</div><div class="label">Done</div></div>
+                <div class="customer-stat"><div class="number">${upcoming}</div><div class="label">Upcoming</div></div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-small btn-primary"   onclick="editCustomer('${customer.id}')"><i class="fas fa-edit"></i> Edit</button>
+                <button class="btn btn-small btn-secondary" onclick="viewCustomerHistory('${customer.id}')"><i class="fas fa-history"></i> History</button>
+                <button class="btn btn-small btn-success"   onclick="quickBookAppointment('${customer.id}')"><i class="fas fa-calendar-plus"></i> Book</button>
+                <button class="btn btn-small btn-danger"    onclick="deleteCustomer('${customer.id}')"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>`;
+    }).join('');
+};
+
+// ==================== HISTORY ====================
+
+const renderHistory = () => {
+    const sel = document.getElementById('historyCustomer');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">Select customer...</option>';
+    state.customers.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id; opt.textContent = c.name;
+        if (c.id === current) opt.selected = true;
+        sel.appendChild(opt);
+    });
+
+    const cid = sel.value;
+    const container = document.getElementById('historyList');
+
+    if (!cid) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-user-clock"></i><p>Select a customer to view history</p></div>';
+        return;
+    }
+
+    const customer = state.customers.find(c => c.id === cid);
+    const apts = state.appointments
+        .filter(a => a.customerId === cid)
+        .sort((a,b) => (b.date+b.time).localeCompare(a.date+a.time));
+
+    if (!apts.length) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>No appointments for this customer</p></div>';
+        return;
+    }
+
+    const grouped = { completed: [], scheduled: [], cancelled: [], 'no-show': [] };
+    apts.forEach(a => { if (grouped[a.status]) grouped[a.status].push(a); });
+
+    let html = `<div class="customer-summary" style="margin-bottom:20px">
+        <h2>${customer.name}</h2><p style="color:var(--text-secondary)">Total Appointments: ${apts.length}</p></div>`;
+
+    Object.entries(grouped).forEach(([status, list]) => {
+        if (!list.length) return;
+        html += `<div class="history-group">
+            <h3>${status.charAt(0).toUpperCase()+status.slice(1)} (${list.length})</h3>
+            ${list.map(a => {
+                const endT = a.duration ? addMins(a.time, a.duration) : (a.endTime || '');
+                const timeRange = endT ? `${fmt12(a.time)} → ${fmt12(endT)}` : fmt12(a.time);
+                return `<div class="history-item">
+                    <p><strong>${a.service}</strong> ${a.duration ? `<span class="dur-badge"><i class="fas fa-hourglass-half"></i>${fmtDuration(a.duration)}</span>` : ''}</p>
+                    <p>${formatDate(a.date)} &bull; ${timeRange}</p>
+                    ${a.notes ? `<p style="color:var(--text-secondary);font-size:13px"><em>${a.notes}</em></p>` : ''}
+                </div>`;
+            }).join('')}
+        </div>`;
+    });
+
+    container.innerHTML = html;
+};
+
+// ==================== CUSTOMER CRUD ====================
+
+window.editCustomer = (id) => {
+    const c = state.customers.find(x => x.id === id);
+    if (!c) return;
+    state.editingCustomer = id;
+    document.getElementById('customerModalTitle').textContent = 'Edit Customer';
+    document.getElementById('customerId').value    = c.id;
+    document.getElementById('customerName').value  = c.name;
+    document.getElementById('customerPhone').value = c.phone;
+    document.getElementById('customerEmail').value = c.email  || '';
+    document.getElementById('customerNotes').value = c.notes || '';
+    openModal('customerModal');
+};
+
+window.deleteCustomer = async (id) => {
+    const c = state.customers.find(x => x.id === id);
+    if (!c) return;
+    const n = state.appointments.filter(a => a.customerId === id).length;
+    if (!confirm(`Delete ${c.name}${n ? ` and ${n} appointment(s)` : ''}?`)) return;
+    try {
+        await deleteCustomerFromFirebase(id);
+        // listener fires automatically and updates state + re-renders
+        showToast('Customer deleted');
+    } catch { showToast('Error deleting customer', 'error'); }
+};
+
+window.viewCustomerHistory = (id) => {
+    switchView('history');
+    document.getElementById('historyCustomer').value = id;
+    renderHistory();
+};
+
+window.quickBookAppointment = (id) => {
+    openNewAppointmentModal();
+    setTimeout(() => { document.getElementById('appointmentCustomer').value = id; }, 50);
+};
+
+// ==================== APPOINTMENT CRUD ====================
+
+window.editAppointment = (id) => {
+    const apt = state.appointments.find(a => a.id === id);
+    if (!apt) return;
+
+    state.editingAppointment = id;
+
+    document.getElementById('appointmentModalTitle').textContent = 'Edit Appointment';
+    document.getElementById('appointmentId').value        = apt.id;
+    document.getElementById('appointmentDate').value      = apt.date;
+    document.getElementById('appointmentTime').value      = apt.time;
+    document.getElementById('appointmentDuration').value  = apt.duration || 60;
+    document.getElementById('appointmentStatus').value    = apt.status;
+    document.getElementById('appointmentNotes').value     = apt.notes || '';
+
+    if (apt.time && apt.duration) {
+        document.getElementById('appointmentEndTime').value = fmt12(addMins(apt.time, parseInt(apt.duration)));
+    }
+
+    populateServiceDropdown(apt.service);
+
+    const sel = document.getElementById('appointmentCustomer');
+    sel.innerHTML = '<option value="">Select customer...</option>';
+    state.customers.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.id; o.textContent = c.name;
+        if (c.id === apt.customerId) o.selected = true;
+        sel.appendChild(o);
+    });
+
+    openModal('appointmentModal');
+};
+
+window.deleteAppointment = async (id) => {
+    if (!confirm('Delete this appointment?')) return;
+    try {
+        await deleteAppointmentFromFirebase(id);
+        // listener fires automatically and updates state + re-renders
+        showToast('Appointment deleted');
+    } catch { showToast('Error deleting appointment', 'error'); }
+};
+
+window.sendWhatsAppReminder = (id) => {
+    const apt = state.appointments.find(a => a.id === id);
+    if (!apt) return;
+    const c = state.customers.find(x => x.id === apt.customerId);
+    if (!c) return;
+
+    const msg = (state.settings.reminderMessage || '')
+        .replace('{name}',    c.name)
+        .replace('{service}', apt.service)
+        .replace('{date}',    formatDate(apt.date))
+        .replace('{time}',    apt.time)
+        .replace('{room}',    '');
+
+    const phone = c.phone.replace(/\D/g, '');
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+};
+
+const onSlotChange = () => {
+    const date     = document.getElementById('appointmentDate').value;
+    const time     = document.getElementById('appointmentTime').value;
+    const duration = document.getElementById('appointmentDuration').value;
+    const excl     = document.getElementById('appointmentId').value;
+
+    const endEl = document.getElementById('appointmentEndTime');
+    if (time && duration) {
+        endEl.value = fmt12(addMins(time, parseInt(duration)));
+    } else {
+        endEl.value = '';
+    }
+
+};
+
+['change', 'input'].forEach(evt => {
+    document.getElementById('appointmentDate').addEventListener(evt,     onSlotChange);
+    document.getElementById('appointmentTime').addEventListener(evt,     onSlotChange);
+    document.getElementById('appointmentDuration').addEventListener(evt, onSlotChange);
+});
+
+// ==================== FORM: CUSTOMER ====================
+
+document.getElementById('customerForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const customer = {
+        id:    document.getElementById('customerId').value,
+        name:  document.getElementById('customerName').value.trim(),
+        phone: document.getElementById('customerPhone').value.trim(),
+        email: document.getElementById('customerEmail').value.trim(),
+        notes: document.getElementById('customerNotes').value.trim()
+    };
+    try {
+        await saveCustomerToFirebase(customer);
+        // listener fires automatically and updates state + re-renders
+        showToast(customer.id ? 'Customer updated ✅' : 'Customer added ✅');
+        closeModal('customerModal');
+        document.getElementById('customerForm').reset();
+        state.editingCustomer = null;
+    } catch { showToast('Error saving customer', 'error'); }
+});
+
+// ==================== FORM: APPOINTMENT ====================
+
+document.getElementById('appointmentForm').addEventListener('submit', async e => {
+    e.preventDefault();
+
+    const date     = document.getElementById('appointmentDate').value;
+    const time     = document.getElementById('appointmentTime').value;
+    const duration = document.getElementById('appointmentDuration').value;
+    const editId   = document.getElementById('appointmentId').value;
+
+    if (!duration) { showToast('Please select a duration!', 'error'); return; }
+
+    const customerId = document.getElementById('appointmentCustomer').value;
+    const customer   = state.customers.find(c => c.id === customerId);
+    const endTime    = addMins(time, parseInt(duration));
+
+    const appointment = {
+        id:           editId,
+        customerId,
+        customerName: customer ? customer.name : '',
+        date,
+        time,
+        endTime,
+        duration:    parseInt(duration),
+        service: document.getElementById('appointmentService').value.trim(),
+        status:  document.getElementById('appointmentStatus').value,
+        notes:   document.getElementById('appointmentNotes').value.trim()
+    };
+
+    try {
+        await saveAppointmentToFirebase(appointment);
+
+        // Auto-save new service typed in the service field
+        const typedService = appointment.service;
+        if (typedService && !state.services.some(s => s.name.toLowerCase() === typedService.toLowerCase())) {
+            await addServiceToFirebase(typedService);
+            // services listener fires automatically and updates state
+        }
+
+        // listeners fire automatically — no manual loadDataFromFirebase needed
+        showToast(editId ? 'Appointment updated ✅' : 'Appointment booked ✅');
+        closeModal('appointmentModal');
+        document.getElementById('appointmentForm').reset();
+        state.editingAppointment = null;
+    } catch { showToast('Error saving appointment', 'error'); }
+});
+
+// ==================== SETTINGS ====================
+
+document.getElementById('saveSettings').addEventListener('click', async () => {
+    const settings = {
+        whatsappNumber:  document.getElementById('whatsappNumber').value.trim(),
+        reminderMessage: document.getElementById('reminderMessage').value.trim()
+    };
+    try {
+        await saveSettingsToFirebase(settings);
+        // settings listener fires automatically and updates state
+        showToast('Settings saved ✅');
+    } catch { showToast('Error saving settings', 'error'); }
+});
+
+// ==================== SERVICES UI ====================
+
+const renderServicesList = () => {
+    const container = document.getElementById('servicesList');
+    const badge     = document.getElementById('servicesTotalBadge');
+    if (!container) return;
+
+    const sorted = state.services.slice().sort((a, b) => a.name.localeCompare(b.name));
+
+    if (badge) badge.textContent = `${sorted.length} service${sorted.length !== 1 ? 's' : ''}`;
+
+    if (!sorted.length) {
+        container.innerHTML = `
+            <div class="services-empty">
+                <i class="fas fa-concierge-bell"></i>
+                <p>No services yet</p>
+                <small>Type a name above and press Enter or click Add</small>
+            </div>`;
+    } else {
+        container.innerHTML = `
+            <div class="services-chips">
+                ${sorted.map(svc => `
+                    <div class="service-chip">
+                        <span>${svc.name}</span>
+                        <button class="service-chip-del" onclick="removeService('${svc.id}')" title="Remove '${svc.name}'">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>`).join('')}
+            </div>`;
+    }
+
+    populateServiceDropdown();
+};
+
+const populateServiceDropdown = (currentValue = '') => {
+    const sel = document.getElementById('appointmentServiceSelect');
+    const inp = document.getElementById('appointmentService');
+    if (!sel) return;
+
+    const sorted = state.services.slice().sort((a, b) => a.name.localeCompare(b.name));
+
+    sel.innerHTML = '<option value="">— Pick from saved services —</option>';
+    sorted.forEach(svc => {
+        const o = document.createElement('option');
+        o.value = svc.name;
+        o.textContent = svc.name;
+        if (svc.name === currentValue) o.selected = true;
+        sel.appendChild(o);
+    });
+
+    if (currentValue && inp) {
+        inp.value = currentValue;
+        sel.value = currentValue;
+    }
+};
+
+document.getElementById('appointmentServiceSelect')?.addEventListener('change', function () {
+    const inp = document.getElementById('appointmentService');
+    if (this.value && inp) inp.value = this.value;
+});
+
+document.getElementById('appointmentService')?.addEventListener('input', function () {
+    const sel = document.getElementById('appointmentServiceSelect');
+    if (sel) sel.value = '';
+});
+
+document.getElementById('addServiceBtn').addEventListener('click', async () => {
+    const input = document.getElementById('newServiceInput');
+    const name  = input.value.trim();
+    if (!name) { showToast('Please enter a service name', 'error'); return; }
+
+    if (state.services.some(s => s.name.toLowerCase() === name.toLowerCase())) {
+        showToast(`"${name}" already exists`, 'error');
+        return;
+    }
+
+    try {
+        await addServiceToFirebase(name);
+        // services listener fires automatically and updates state
+        input.value = '';
+        showToast(`Service "${name}" added ✅`);
+    } catch { showToast('Error adding service', 'error'); }
+});
+
+document.getElementById('newServiceInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('addServiceBtn').click();
+    }
+});
+
+window.removeService = async (id) => {
+    const svc = state.services.find(s => s.id === id);
+    if (!svc) return;
+    if (!confirm(`Remove service "${svc.name}"?`)) return;
+    try {
+        await removeServiceFromFirebase(id);
+        // services listener fires automatically and updates state
+        showToast(`Service "${svc.name}" removed`);
+    } catch { showToast('Error removing service', 'error'); }
+};
+
+// ==================== MODAL CONTROLS ====================
+
+const openNewCustomerModal = () => {
+    state.editingCustomer = null;
+    document.getElementById('customerModalTitle').textContent = 'New Customer';
+    document.getElementById('customerForm').reset();
+    openModal('customerModal');
+};
+
+const openNewAppointmentModal = (preselectedDate = '') => {
+    state.editingAppointment = null;
+    document.getElementById('appointmentModalTitle').textContent = 'New Appointment';
+    document.getElementById('appointmentForm').reset();
+    document.getElementById('appointmentId').value       = '';
+    document.getElementById('appointmentEndTime').value  = '';
+    document.getElementById('appointmentDuration').value = '';
+
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('appointmentDate').value = preselectedDate || today;
+    document.getElementById('appointmentTime').value = '';
+
+    const sel = document.getElementById('appointmentCustomer');
+    sel.innerHTML = '<option value="">Select customer...</option>';
+    state.customers.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.id; o.textContent = c.name;
+        sel.appendChild(o);
+    });
+
+    populateServiceDropdown('');
+    const svcSel = document.getElementById('appointmentServiceSelect');
+    if (svcSel) svcSel.value = '';
+
+    openModal('appointmentModal');
+};
+
+document.getElementById('newCustomerBtn').addEventListener('click', openNewCustomerModal);
+document.getElementById('newAppointmentBtn').addEventListener('click', openNewAppointmentModal);
+
+// Mobile FAB — context-aware
+document.getElementById('mobileNewApptBtn')?.addEventListener('click', () => {
+    if (state.currentView === 'customers') {
+        openNewCustomerModal();
+    } else if (state.currentView === 'debts') {
+        openDebtModal();
+    } else if (state.currentView === 'inventory') {
+        openProductModal();
+    } else {
+        openNewAppointmentModal();
+    }
+});
+
+// Mobile inline New Customer button inside customers view
+document.getElementById('mobileAddCustomerBtn')?.addEventListener('click', openNewCustomerModal);
+
+
+document.querySelectorAll('[data-modal]').forEach(btn => {
+    btn.addEventListener('click', () => closeModal(btn.getAttribute('data-modal')));
+});
+
+document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal(modal.id); });
+});
+
+// ==================== CALENDAR NAVIGATION ====================
+
+document.getElementById('prevMonth').addEventListener('click', () => {
+    state.currentMonth.setMonth(state.currentMonth.getMonth() - 1);
+    renderCalendar();
+});
+document.getElementById('nextMonth').addEventListener('click', () => {
+    state.currentMonth.setMonth(state.currentMonth.getMonth() + 1);
+    renderCalendar();
+});
+
+// ==================== FILTER LISTENERS ====================
+
+document.getElementById('searchAppointment')?.addEventListener('input',  renderAppointments);
+document.getElementById('filterStatus')?.addEventListener('change',      renderAppointments);
+document.getElementById('filterDate')?.addEventListener('change',        renderAppointments);
+document.getElementById('searchCustomer')?.addEventListener('input',     renderCustomers);
+document.getElementById('historyCustomer')?.addEventListener('change',   renderHistory);
+
+// ==================== REMINDERS ====================
+
+const checkReminders = () => {
+    const now = new Date();
+    state.appointments.forEach(apt => {
+        if (apt.status !== 'scheduled') return;
+        const [h, m] = apt.time.split(':');
+        const aptDT  = new Date(apt.date + 'T00:00:00');
+        aptDT.setHours(parseInt(h), parseInt(m), 0, 0);
+        const diff = aptDT - now;
+        if (diff > 55*60*1000 && diff < 65*60*1000) {
+            const c = state.customers.find(x => x.id === apt.customerId);
+            if (c && confirm(`⏰ Reminder: ${c.name} — ${apt.service} at ${apt.time}\n\nSend WhatsApp reminder now?`))
+                sendWhatsAppReminder(apt.id);
+        }
+    });
+};
+setInterval(checkReminders, 60000);
+
+// ==================== INIT ====================
+
+window.addEventListener('DOMContentLoaded', () => {
+    // Real-time listeners are already attached above — they fire immediately
+    // on connect and handle all initial data loading automatically.
+    // setSyncState loading so UI shows spinner until first data arrives
+    setSyncState('loading');
+    switchView('dashboard');
+
+    // Sync buttons — manual force-refresh with visual feedback
+    document.getElementById('syncBtn')?.addEventListener('click', () => loadDataFromFirebase(true));
+    document.getElementById('mobileSyncBtn')?.addEventListener('click', () => loadDataFromFirebase(true));
+
+    // Re-render when tab/app comes back into focus (multi-device: data may have
+    // changed on another device while this tab was in the background)
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            renderCurrentView();
+            renderServicesList();
+        }
+    });
+
+    // ---- iOS / Safari compatibility fixes ----
+
+    // 1. Fix: iOS date inputs sometimes show blank — force placeholder text
+    document.querySelectorAll('input[type="date"], input[type="time"]').forEach(input => {
+        // On iOS, date/time inputs work natively — just ensure they have a value
+        // to avoid the blank appearance bug in some older iOS versions
+        input.addEventListener('focus', function() {
+            if (!this.value) this.value = this.value; // trigger repaint
+        });
+    });
+
+    // 2. Fix: iOS scroll position jump when keyboard opens
+    // When a text input is focused on iOS, the page may scroll oddly
+    const inputs = document.querySelectorAll('input, textarea, select');
+    inputs.forEach(input => {
+        input.addEventListener('focus', () => {
+            // Small delay to let iOS keyboard animate in first
+            setTimeout(() => {
+                input.scrollIntoViewIfNeeded
+                    ? input.scrollIntoViewIfNeeded(true)
+                    : input.scrollIntoView({ block: 'nearest' });
+            }, 300);
+        });
+    });
+
+    // 3. Fix: iOS Safari double-tap zoom — add touch-action to interactive elements
+    // (CSS touch-action:manipulation already handles buttons; this covers <a> tags)
+    document.querySelectorAll('a, .mob-nav-item, .service-chip-del').forEach(el => {
+        el.style.touchAction = 'manipulation';
+    });
+
+    // 4. Fix: iOS momentum scroll for the main content area
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+        mainContent.style.webkitOverflowScrolling = 'touch';
+        mainContent.style.overflowY = 'auto';
+    }
+});
+
+// ==================== LOGIN / AUTH ====================
+
+const APP_PASSWORD     = 'sachakhalil123';   // ← change this to your password
+const SESSION_KEY      = 'ns_auth';
+const SESSION_DURATION = 8 * 60 * 60 * 1000; // 8 hours in ms
+
+const isSessionValid = () => {
+    try {
+        const s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
+        return s && s.ok && (Date.now() - s.ts < SESSION_DURATION);
+    } catch { return false; }
+};
+
+const saveSession = () => {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ok: true, ts: Date.now() }));
+};
+
+const clearSession = () => {
+    sessionStorage.removeItem(SESSION_KEY);
+};
+
+const showApp = () => {
+    document.getElementById('loginScreen').classList.add('hidden');
+};
+
+const showLogin = () => {
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('loginPassword').value = '';
+    document.getElementById('loginError').classList.remove('show');
+    setTimeout(() => document.getElementById('loginPassword').focus(), 100);
+};
+
+const doLogin = () => {
+    const pw  = document.getElementById('loginPassword').value;
+    const inp = document.getElementById('loginPassword');
+    const err = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+
+    if (pw === APP_PASSWORD) {
+        saveSession();
+        err.classList.remove('show');
+        inp.classList.remove('error');
+        btn.disabled = false;
+        showApp();
+    } else {
+        err.classList.add('show');
+        inp.classList.add('error');
+        inp.value = '';
+        setTimeout(() => { inp.classList.remove('error'); inp.focus(); }, 500);
+    }
+};
+
+const doLogout = () => {
+    if (!confirm('Log out of Nail by Sacha Khalil?')) return;
+    clearSession();
+    showLogin();
+};
+
+// Wire login UI
+document.getElementById('loginForm').addEventListener('submit', e => {
+    e.preventDefault();
+    doLogin();
+});
+
+// Show/hide password toggle
+document.getElementById('togglePw').addEventListener('click', () => {
+    const inp  = document.getElementById('loginPassword');
+    const icon = document.getElementById('togglePwIcon');
+    if (inp.type === 'password') {
+        inp.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+    } else {
+        inp.type = 'password';
+        icon.className = 'fas fa-eye';
+    }
+});
+
+// Wire logout buttons
+document.getElementById('logoutBtn')?.addEventListener('click', doLogout);
+document.getElementById('mobileLogoutBtn')?.addEventListener('click', doLogout);
+
+// Check session on load — show login or app
+if (isSessionValid()) {
+    showApp();
+} else {
+    // loginScreen is visible by default in HTML — just focus the input
+    setTimeout(() => document.getElementById('loginPassword').focus(), 300);
+}
+
+// ==================== POS SYSTEM ====================
+// State variables (all POS-local; products/customers come from state.products / state.customers)
+let posCart              = [];
+let posCurrentSaleId     = null; // Firebase key of last processed sale
+let posCurrentSaleLocal  = null; // last sale object for receipt/void
+let posDiscountAmount    = 0;    // computed discount in $
+let posDiscountType      = 'percent';
+let posSettings = {
+    storeName:          'Nail by Sacha Khalil',
+    storeAddress:       '',
+    storePhone:         '03711621',
+    taxRate:            0,          // % — 0 by default; update if VAT applies
+    lowStockThreshold:  3           // nail supplies run low fast
+};
+
+// ── Helpers ────────────────────────────────────────────────────────────
+const posFmt = (n) => Number(n || 0).toFixed(2);
+
+const posSaleInvoiceNumber = (sale) => {
+    const d   = sale.date ? new Date(sale.date) : new Date();
+    const key = (sale.firebaseKey || sale.id || '??????').toString().slice(-6);
+    return `SAL-${d.getFullYear()}-${key}`;
+};
+
+// ── Render stats bar ───────────────────────────────────────────────────
+const posRenderStats = () => {
+    const today      = new Date().toDateString();
+    const activeSales = state.sales.filter(s => !s.voided && new Date(s.date).toDateString() === today);
+    const totalAmt   = activeSales.reduce((s, sale) => s + Number(sale.total || 0), 0);
+    const el1 = document.getElementById('posTodaySales');
+    const el2 = document.getElementById('posTodayTx');
+    const el3 = document.getElementById('posProductCount');
+    if (el1) el1.textContent = posFmt(totalAmt);
+    if (el2) el2.textContent = activeSales.length;
+    if (el3) el3.textContent = state.products.length;
+};
+
+// ── Main render entry (called by switchView) ───────────────────────────
+const renderPOS = () => {
+    posRenderStats();
+    posLoadProductList();
+    posUpdateVatDisplay();
+};
+
+// ── Product list ───────────────────────────────────────────────────────
+const posLoadProductList = (filtered = null) => {
+    const products = filtered !== null ? filtered : state.products;
+    const container = document.getElementById('posProductList');
+    if (!container) return;
+
+    if (!products.length) {
+        container.innerHTML = '<div class="pos-empty-cart" style="padding:20px 0;"><i class="fas fa-spa"></i>No products found — add some in Inventory</div>';
+        return;
+    }
+
+    container.innerHTML = products.map(p => {
+        const qty   = Number(p.quantity || 0);
+        const price = Number(p.salePrice || 0);
+        const isOut = qty <= 0;
+        const isLow = qty > 0 && qty <= posSettings.lowStockThreshold;
+        return `
+        <div class="pos-product-item ${isOut ? 'out-of-stock' : ''} ${isLow ? 'low-stock' : ''}"
+             onclick="${isOut ? '' : `posAddToCart('${p.id}')`}" title="${isOut ? 'Out of stock' : 'Click to add'}">
+            <div>
+                <div class="pos-product-name">${p.name}</div>
+                <div class="pos-product-stock ${isLow ? 'low' : 'ok'}">
+                    ${isOut ? '❌ Out of stock' : isLow ? `⚠️ Stock: ${qty}` : `Stock: ${qty}`}
+                </div>
+            </div>
+            <div class="pos-product-price">${posFmt(price)}</div>
+        </div>`;
+    }).join('');
+};
+
+const posFilterProducts = (term) => {
+    if (!term.trim()) { posLoadProductList(); return; }
+    const t = term.toLowerCase();
+    const filtered = state.products.filter(p =>
+        p.name.toLowerCase().includes(t) ||
+        (p.barcode && String(p.barcode).toLowerCase().includes(t))
+    );
+    posLoadProductList(filtered);
+};
+
+// ── Barcode input ──────────────────────────────────────────────────────
+const posAddByBarcode = (barcode) => {
+    const p = state.products.find(pr => String(pr.barcode || '') === barcode.trim());
+    if (p) {
+        posAddToCart(p.id);
+    } else {
+        showToast(`No product found with barcode: ${barcode}`, 'error');
+    }
+};
+
+// ── Cart logic ─────────────────────────────────────────────────────────
+const posAddToCart = (productId) => {
+    const product = state.products.find(p => p.id === productId);
+    if (!product) return;
+    if (Number(product.quantity || 0) <= 0) { showToast('Out of stock!', 'error'); return; }
+
+    const existing = posCart.find(i => i.id === productId);
+    if (existing) {
+        if (existing.quantity < Number(product.quantity)) {
+            existing.quantity++;
+        } else {
+            showToast('Not enough stock!', 'error'); return;
+        }
+    } else {
+        posCart.push({
+            id:       product.id,
+            name:     product.name,
+            price:    Number(product.salePrice || 0),
+            quantity: 1,
+            barcode:  product.barcode || ''
+        });
+    }
+    posRenderCart();
+    posCalculateTotals();
+};
+
+const posRemoveFromCart = (productId) => {
+    posCart = posCart.filter(i => i.id !== productId);
+    posRenderCart();
+    posCalculateTotals();
+};
+
+window.posUpdateCartQty = (productId, newQty) => {
+    const product  = state.products.find(p => p.id === productId);
+    const cartItem = posCart.find(i => i.id === productId);
+    if (!cartItem) return;
+    const qty = parseInt(newQty);
+    if (qty <= 0) { posRemoveFromCart(productId); return; }
+    if (product && qty <= Number(product.quantity)) {
+        cartItem.quantity = qty;
+        posRenderCart();
+        posCalculateTotals();
+    } else {
+        showToast('Not enough stock!', 'error');
+    }
+};
+
+const posRenderCart = () => {
+    const container = document.getElementById('posCartItems');
+    if (!container) return;
+    if (!posCart.length) {
+        container.innerHTML = '<div class="pos-empty-cart"><i class="fas fa-shopping-cart"></i>Cart is empty</div>';
+        return;
+    }
+    container.innerHTML = posCart.map(item => `
+        <div class="pos-cart-item">
+            <div class="pos-cart-item-info">
+                <div class="pos-cart-item-name">${item.name}</div>
+                <div class="pos-cart-item-price">${posFmt(item.price)} each</div>
+            </div>
+            <div class="pos-cart-qty">
+                <input type="number" value="${item.quantity}" min="1"
+                       onchange="posUpdateCartQty('${item.id}', this.value)"
+                       style="font-size:16px;">
+            </div>
+            <div class="pos-cart-line-total">${posFmt(item.price * item.quantity)}</div>
+            <button class="pos-cart-del" onclick="posRemoveFromCart('${item.id}')" title="Remove">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>`).join('');
+};
+
+// ── Totals ─────────────────────────────────────────────────────────────
+const posCalculateTotals = () => {
+    const subtotal      = posCart.reduce((s, i) => s + i.price * i.quantity, 0);
+    const discInputVal  = parseFloat(document.getElementById('posDiscountInput')?.value || 0) || 0;
+    const discType      = document.getElementById('posDiscountType')?.value || 'percent';
+
+    let disc = 0;
+    if (discInputVal > 0) {
+        disc = discType === 'percent'
+            ? subtotal * (discInputVal / 100)
+            : Math.min(discInputVal, subtotal);
+    }
+    posDiscountAmount = disc;
+    posDiscountType   = discType;
+
+    const afterDisc = subtotal - disc;
+    const taxRate   = parseFloat(posSettings.taxRate) || 0;
+    const vatAmt    = afterDisc * (taxRate / 100);
+    const total     = afterDisc + vatAmt;
+
+    // Update DOM
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('posSubtotal', posFmt(subtotal));
+    set('posDiscountAmt', `-${posFmt(disc)}`);
+    set('posVatAmt', posFmt(vatAmt));
+    set('posTotal', posFmt(total));
+
+    // Show/hide discount row
+    const discRow = document.getElementById('posDiscountRow');
+    if (discRow) discRow.style.display = disc > 0 ? 'flex' : 'none';
+    const vatRow = document.getElementById('posVatRow');
+    if (vatRow) vatRow.style.display = taxRate > 0 ? 'flex' : 'none';
+
+    posUpdatePointsToEarn();
+};
+
+const posApplyDiscount = () => posCalculateTotals();
+
+const posUpdateVatDisplay = () => {
+    const el = document.getElementById('posVatRateDisplay');
+    if (el) el.textContent = posSettings.taxRate || 0;
+};
+
+// ── Loyalty display ─────────────────────────────────────────────────────
+const posGetCustomerData = (name) => {
+    if (!name || name === 'Walk-in Customer') return null;
+    // Try to find in state.customers (appointment customers)
+    const found = state.customers.find(c => c.name.toLowerCase() === name.toLowerCase());
+    return found || null;
+};
+
+const posShowCustSuggestions = () => {
+    const nameInput = document.getElementById('posCustName');
+    const box       = document.getElementById('posCustSuggestions');
+    if (!nameInput || !box) return;
+
+    const q = nameInput.value.toLowerCase().trim();
+    if (!q) { box.style.display = 'none'; return; }
+
+    const matches = state.customers.filter(c => {
+        if (!c || !c.name) return false;
+        const ph = (c.phone || '').toString();
+        return c.name.toLowerCase().includes(q) || ph.toLowerCase().includes(q);
+    }).slice(0, 6);
+
+    if (!matches.length) { box.style.display = 'none'; return; }
+
+    box.innerHTML = matches.map(c => `
+        <div class="pos-sugg-item"
+             onmousedown="posSelectCust('${(c.name||'').replace(/'/g,"\\'")}','${(c.phone||'').replace(/'/g,"\\'")}')">
+            <div class="pos-sugg-name">${c.name}</div>
+            ${c.phone ? `<div class="pos-sugg-phone"><i class="fas fa-phone" style="font-size:10px;"></i> ${c.phone}</div>` : ''}
+        </div>`).join('');
+    box.style.display = 'block';
+};
+
+window.posSelectCust = (name, phone) => {
+    const ni = document.getElementById('posCustName');
+    const pi = document.getElementById('posCustPhone');
+    if (ni) ni.value = name;
+    if (pi && phone) pi.value = phone;
+    const box = document.getElementById('posCustSuggestions');
+    if (box) box.style.display = 'none';
+    posUpdateLoyaltyDisplay();
+};
+
+const posUpdateLoyaltyDisplay = () => {
+    const name    = (document.getElementById('posCustName')?.value || '').trim();
+    const badge   = document.getElementById('posLoyaltyBadge');
+    const ptsEl   = document.getElementById('posCustPoints');
+    if (!badge) return;
+
+    posShowCustSuggestions();
+
+    if (name && name !== 'Walk-in Customer') {
+        const c = posGetCustomerData(name);
+        if (c) {
+            if (ptsEl) ptsEl.textContent = c.loyaltyPoints || 0;
+            badge.style.display = 'flex';
+            // Auto-fill phone if blank
+            const pi = document.getElementById('posCustPhone');
+            if (pi && !pi.value && c.phone) pi.value = c.phone;
+            posUpdatePointsToEarn();
+        } else {
+            badge.style.display = 'none';
+        }
+    } else {
+        badge.style.display = 'none';
+    }
+};
+
+const posUpdatePointsToEarn = () => {
+    const total      = parseFloat(document.getElementById('posTotal')?.textContent || 0);
+    const earnEl     = document.getElementById('posPointsEarn');
+    const earnValEl  = document.getElementById('posPointsEarnVal');
+    if (!earnEl) return;
+    if (total > 0) {
+        if (earnValEl) earnValEl.textContent = Math.floor(total);
+        earnEl.style.display = 'block';
+    } else {
+        earnEl.style.display = 'none';
+    }
+};
+
+// ── Clear cart ──────────────────────────────────────────────────────────
+const posClearCart = () => {
+    posCart           = [];
+    posDiscountAmount = 0;
+    const di = document.getElementById('posDiscountInput'); if (di) di.value = '';
+    const ni = document.getElementById('posCustName');      if (ni) ni.value = '';
+    const pi = document.getElementById('posCustPhone');     if (pi) pi.value = '';
+    const sb = document.getElementById('posCustSuggestions'); if (sb) { sb.innerHTML=''; sb.style.display='none'; }
+    posRenderCart();
+    posCalculateTotals();
+    const badge = document.getElementById('posLoyaltyBadge'); if (badge) badge.style.display = 'none';
+};
+
+// ── Process Payment → save to Firebase ─────────────────────────────────
+const posProcessPayment = async () => {
+    if (!posCart.length) { showToast('Cart is empty!', 'error'); return; }
+
+    const total      = parseFloat(document.getElementById('posTotal')?.textContent || 0);
+    const subtotal   = parseFloat(document.getElementById('posSubtotal')?.textContent || 0);
+    const custName   = (document.getElementById('posCustName')?.value  || '').trim() || 'Walk-in Customer';
+    const custPhone  = (document.getElementById('posCustPhone')?.value || '').trim();
+
+    const taxRate    = parseFloat(posSettings.taxRate) || 0;
+    const afterDisc  = subtotal - posDiscountAmount;
+    const vatAmt     = afterDisc * (taxRate / 100);
+
+    const sale = {
+        date:          new Date().toISOString(),
+        customerName:  custName,
+        customerPhone: custPhone,
+        items:         posCart.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity, barcode: i.barcode })),
+        subtotal:      subtotal,
+        discount:      posDiscountAmount,
+        tax:           vatAmt,
+        total:         total,
+        amountPaid:    total,
+        change:        0,
+        status:        'completed',
+        voided:        false
+    };
+
+    // Loyalty points: 1 point per $1 spent
+    const pointsEarned = (custName !== 'Walk-in Customer') ? Math.floor(total) : 0;
+    if (pointsEarned > 0) sale.loyaltyPointsEarned = pointsEarned;
+
+    try {
+        // Push sale to Firebase
+        const ref  = database.ref('sales').push();
+        sale.firebaseKey = ref.key;
+        await ref.set(sale);
+
+        // Update stock in Firebase for each cart item
+        const stockUpdates = [];
+        for (const cartItem of posCart) {
+            const product = state.products.find(p => p.id === cartItem.id);
+            if (product) {
+                const newQty = Math.max(0, Number(product.quantity) - cartItem.quantity);
+                stockUpdates.push(database.ref(`products/${cartItem.id}/quantity`).set(newQty));
+            }
+        }
+        await Promise.all(stockUpdates);
+
+        // Show receipt
+        posCurrentSaleId    = ref.key;
+        posCurrentSaleLocal = sale;
+        posGenerateReceipt(sale);
+        posClearCart();
+        posRenderStats();
+        showToast('✅ Payment processed!');
+
+        if (pointsEarned > 0) {
+            setTimeout(() => showToast(`⭐ ${custName} earned ${pointsEarned} loyalty points!`), 1200);
+        }
+    } catch (err) {
+        console.error('POS payment error:', err);
+        showToast('Error saving sale — check Firebase', 'error');
+    }
+};
+
+// ── Generate Receipt ────────────────────────────────────────────────────
+const posGenerateReceipt = (sale) => {
+    const receiptEl  = document.getElementById('posReceiptContent');
+    const sectionEl  = document.getElementById('posReceiptSection');
+    const voidBtn    = document.getElementById('posVoidBtn');
+    if (!receiptEl || !sectionEl) return;
+
+    const saleDate    = new Date(sale.date || new Date().toISOString());
+    const invoiceNo   = posSaleInvoiceNumber(sale);
+    const isVoided    = !!sale.voided;
+    const voidDate    = sale.voidedAt ? new Date(sale.voidedAt) : null;
+
+    const subtotal    = Number(sale.subtotal || 0);
+    const discount    = Number(sale.discount || 0);
+    const afterDisc   = Math.max(subtotal - discount, 0);
+    const taxRate     = parseFloat(posSettings.taxRate) || 0;
+    const vatAmount   = afterDisc * (taxRate / 100);
+    const total       = Number(sale.total || (afterDisc + vatAmount));
+
+    const itemsHtml = (sale.items || []).map(item => {
+        const qty  = Number(item.quantity || 0);
+        const price = Number(item.price || 0);
+        return `
+        <div style="margin-bottom:6px;">
+            <div style="font-weight:700;word-break:break-word;">${item.name}</div>
+            <div style="display:flex;justify-content:space-between;gap:8px;">
+                <div style="white-space:nowrap;">${qty} x ${price.toFixed(2)}</div>
+                <div style="white-space:nowrap;font-weight:700;">${(qty * price).toFixed(2)}</div>
+            </div>
+        </div>`;
+    }).join('');
+
+    receiptEl.innerHTML = `
+        <div style="width:100%;">
+            ${isVoided ? `<div style="text-align:center;border:2px dashed #dc2626;color:#dc2626;font-weight:900;font-size:16px;padding:6px 0;margin-bottom:8px;letter-spacing:2px;">VOID</div>` : ''}
+
+            <div style="text-align:center;margin-bottom:6px;">
+                <div style="font-weight:800;font-size:13px;">${posSettings.storeName}</div>
+                ${posSettings.storeAddress ? `<div style="white-space:pre-line;">${posSettings.storeAddress}</div>` : ''}
+            </div>
+
+            <div class="dotted-line"></div>
+
+            <div style="margin-bottom:6px;">
+                <div style="display:flex;justify-content:space-between;"><span>Invoice</span><span>${invoiceNo}</span></div>
+                <div style="display:flex;justify-content:space-between;"><span>Date</span><span>${saleDate.toLocaleString()}</span></div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span>Customer</span>
+                    <span style="text-align:right;max-width:55%;word-break:break-word;">${sale.customerName || 'Walk-in'}</span>
+                </div>
+                ${sale.customerPhone ? `<div style="display:flex;justify-content:space-between;"><span>Phone</span><span>${sale.customerPhone}</span></div>` : ''}
+                <div style="display:flex;justify-content:space-between;">
+                    <span>Status</span>
+                    <span style="font-weight:700;color:${isVoided ? '#dc2626' : '#111827'};">${isVoided ? 'VOIDED' : 'COMPLETED'}</span>
+                </div>
+                ${isVoided && voidDate ? `<div style="display:flex;justify-content:space-between;"><span>Voided At</span><span>${voidDate.toLocaleString()}</span></div>` : ''}
+            </div>
+
+            <div class="dotted-line"></div>
+            <div style="margin-bottom:6px;">${itemsHtml || '<div>No items</div>'}</div>
+            <div class="dotted-line"></div>
+
+            <div style="margin-top:6px;">
+                <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
+                ${discount > 0 ? `<div style="display:flex;justify-content:space-between;"><span>Discount</span><span>-${discount.toFixed(2)}</span></div>` : ''}
+                ${taxRate > 0 ? `<div style="display:flex;justify-content:space-between;"><span>VAT (${taxRate}%)</span><span>${vatAmount.toFixed(2)}</span></div>` : ''}
+                <div style="display:flex;justify-content:space-between;font-weight:900;font-size:12px;margin-top:4px;">
+                    <span>TOTAL</span><span>${total.toFixed(2)}</span>
+                </div>
+            </div>
+
+            <div class="dotted-line"></div>
+            <div style="text-align:center;margin-top:6px;">
+                <div style="font-size:12px;font-weight:700;">${isVoided ? 'TRANSACTION VOIDED' : 'THANK YOU FOR YOUR VISIT!'}</div>
+                <div style="font-size:10px;margin-top:2px;">${isVoided ? 'Stock restored. Sale removed from totals.' : 'We hope to see you again soon ♥'}</div>
+                <div class="dotted-line"></div>
+                <div style="font-size:10px;margin-top:4px;">POS by Codea</div>
+                <div style="font-size:10px;">Tel: 03711621</div>
+            </div>
+        </div>`;
+
+    // Void button state
+    if (voidBtn) {
+        voidBtn.disabled = isVoided;
+        voidBtn.innerHTML = isVoided ? '<i class="fas fa-check-circle"></i> Receipt Voided' : '<i class="fas fa-ban"></i> Void Receipt';
+        voidBtn.style.opacity = isVoided ? '0.5' : '1';
+    }
+
+    sectionEl.style.display = 'block';
+    sectionEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+const posPrintReceipt  = () => window.print();
+const posHideReceipt   = () => {
+    const el = document.getElementById('posReceiptSection');
+    if (el) el.style.display = 'none';
+};
+
+const posVoidCurrentReceipt = async () => {
+    if (!posCurrentSaleId) { showToast('No receipt to void', 'error'); return; }
+
+    // Find from state.sales
+    const sale = state.sales.find(s => s.firebaseKey === posCurrentSaleId || s.id === posCurrentSaleId);
+    if (!sale) { showToast('Sale record not found', 'error'); return; }
+    if (sale.voided) { showToast('Already voided', 'error'); posGenerateReceipt(sale); return; }
+
+    if (!confirm(`Void receipt ${posSaleInvoiceNumber(sale)}?\n\nThis will restore stock quantities.`)) return;
+
+    const voidedAt = new Date().toISOString();
+    try {
+        // Update Firebase sale record
+        await database.ref(`sales/${posCurrentSaleId}`).update({ voided: true, status: 'voided', voidedAt });
+
+        // Restore stock for each item
+        const restores = [];
+        for (const item of (sale.items || [])) {
+            const product = state.products.find(p => p.id === item.id);
+            if (product) {
+                const restored = Number(product.quantity) + Number(item.quantity || 0);
+                restores.push(database.ref(`products/${item.id}/quantity`).set(restored));
+            }
+        }
+        await Promise.all(restores);
+
+        showToast(`✅ Receipt ${posSaleInvoiceNumber(sale)} voided`);
+        posRenderStats();
+    } catch (err) {
+        console.error('Void error:', err);
+        showToast('Error voiding receipt', 'error');
+    }
+};
+
+// ── POS Sales History (export) ──────────────────────────────────────────
+const posExportSales = () => {
+    if (!state.sales.length) { showToast('No sales to export', 'error'); return; }
+    const data = state.sales.map(s => ({
+        'Invoice':    posSaleInvoiceNumber(s),
+        'Date':       new Date(s.date).toLocaleString(),
+        'Customer':   s.customerName,
+        'Phone':      s.customerPhone || '',
+        'Subtotal':   s.subtotal,
+        'Discount':   s.discount,
+        'Total':      s.total,
+        'Status':     s.voided ? 'Voided' : 'Completed',
+        'Voided At':  s.voidedAt ? new Date(s.voidedAt).toLocaleString() : ''
+    }));
+    if (typeof XLSX !== 'undefined') {
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Sales');
+        XLSX.writeFile(wb, `sales_${new Date().toISOString().split('T')[0]}.xlsx`);
+    } else {
+        showToast('XLSX library not loaded', 'error');
+    }
+};
+
+// ── Wire barcode input ──────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    const barcodeInput = document.getElementById('posBarcodeInput');
+    if (barcodeInput) {
+        barcodeInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && this.value.trim()) {
+                posAddByBarcode(this.value.trim());
+                this.value = '';
+            }
+        });
+    }
+    const discInput = document.getElementById('posDiscountInput');
+    if (discInput) {
+        discInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') posApplyDiscount();
+        });
+    }
+});
+
+// ==================== SERVICE WORKER (PWA) ====================
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+
+            // When a new SW is waiting, activate it immediately
+            if (reg.waiting) {
+                reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+
+            // New SW found while page is open — activate and reload
+            reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        newWorker.postMessage({ type: 'SKIP_WAITING' });
+                    }
+                });
+            });
+
+            // SW took control — reload to get fresh files
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                window.location.reload();
+            });
+
+        }).catch(err => console.warn('SW registration failed:', err));
+    });
+}
+    </script>
+</body>
+</html>
